@@ -134,9 +134,7 @@ class Installer(object):
         return dev
 
     def _cdrom_path(self):
-        if self._treemedia:
-            return self._treemedia.cdrom_path()
-        return self._cdrom
+        return self._treemedia.cdrom_path() if self._treemedia else self._cdrom
 
     def _add_install_cdrom_device(self, guest):
         if self._install_cdrom_device_added:
@@ -147,8 +145,7 @@ class Installer(object):
         self._install_cdrom_device_added = True
 
         if self._is_reinstall:
-            cdroms = [d for d in guest.devices.disk if d.is_cdrom()]
-            if cdroms:
+            if cdroms := [d for d in guest.devices.disk if d.is_cdrom()]:
                 dev = cdroms[0]
                 dev.set_source_path(self._cdrom_path())
                 return
@@ -216,9 +213,11 @@ class Installer(object):
         return bootorder
 
     def _can_set_guest_bootorder(self, guest):
-        return (not guest.os.is_container() and
-            not guest.os.kernel and
-            not any([d.boot.order for d in guest.devices.get_all()]))
+        return (
+            not guest.os.is_container()
+            and not guest.os.kernel
+            and not any(d.boot.order for d in guest.devices.get_all())
+        )
 
     def _alter_treemedia_bootconfig(self, guest):
         if not self._treemedia:
@@ -289,9 +288,7 @@ class Installer(object):
             return True
         if self.conn.is_unprivileged():
             return False
-        if scratchdir == system_scratchdir:
-            return False  # pragma: no cover
-        return True
+        return scratchdir != system_scratchdir
 
     def _upload_media(self, guest, meter, paths):
         system_scratchdir = InstallerTreeMedia.get_system_scratchdir(guest)
@@ -415,8 +412,7 @@ class Installer(object):
             return DomainOs.BOOT_DEVICE_CDROM
 
         if self._install_bootdev:
-            if any([d for d in guest.devices.disk
-                    if d.device == d.DEVICE_DISK]):
+            if any(d for d in guest.devices.disk if d.device == d.DEVICE_DISK):
                 return DomainOs.BOOT_DEVICE_HARDDISK
             return self._install_bootdev
 
@@ -515,9 +511,7 @@ class Installer(object):
         """
         Return True if some explicit install option was actually passed in
         """
-        if self._no_install:
-            return True
-        return self.has_install_phase()
+        return True if self._no_install else self.has_install_phase()
 
     def detect_distro(self, guest):
         """
@@ -534,10 +528,8 @@ class Installer(object):
             if guest.conn.is_remote():
                 log.debug("Can't detect distro for cdrom "
                     "remote connection.")
-            else:
-                osguess = OSDB.guess_os_by_iso(self.cdrom)
-                if osguess:
-                    ret = osguess[0]
+            elif osguess := OSDB.guess_os_by_iso(self.cdrom):
+                ret = osguess[0]
         else:
             log.debug("No media for distro detection.")
 

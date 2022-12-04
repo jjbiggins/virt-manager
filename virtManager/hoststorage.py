@@ -47,10 +47,13 @@ ICON_SHUTOFF = "state_shutoff"
 def _get_pool_size_percent(pool):
     cap = pool.get_capacity()
     alloc = pool.get_allocation()
-    per = 0
-    if cap and alloc is not None:
-        per = int(((float(alloc) / float(cap)) * 100))
-    return "<span size='small'>%s%%</span>" % int(per)
+    per = (
+        int(((float(alloc) / float(cap)) * 100))
+        if cap and alloc is not None
+        else 0
+    )
+
+    return "<span size='small'>%s%%</span>" % per
 
 
 class vmmHostStorage(vmmGObjectUI):
@@ -282,9 +285,7 @@ class vmmHostStorage(vmmGObjectUI):
 
     def _current_vol(self):
         pool = self._current_pool()
-        if not pool:
-            return None  # pragma: no cover
-        return uiutil.get_list_selection(self.widget("vol-list"))
+        return uiutil.get_list_selection(self.widget("vol-list")) if pool else None
 
     def _update_pool_row(self, pool):
         for row in self.widget("pool-list").get_model():
@@ -517,8 +518,7 @@ class vmmHostStorage(vmmGObjectUI):
             return  # pragma: no cover
 
         clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
-        target_path = vol.get_target_path()
-        if target_path:
+        if target_path := vol.get_target_path():
             clipboard.set_text(target_path, -1)
 
     def _vol_add_cb(self, src):

@@ -58,7 +58,7 @@ class _SettingsWrapper(object):
         self._handler_map = {}
 
         for child in self._settings.list_children():
-            childschema = self._root + "." + child
+            childschema = f"{self._root}.{child}"
             self._settingsmap[child] = Gio.Settings.new_with_backend(
                     childschema, backend)
 
@@ -91,7 +91,7 @@ class _SettingsWrapper(object):
         if settingskey in self._settingsmap:
             return True
 
-        schema = self._root + ".vm"
+        schema = f"{self._root}.vm"
         path = "/" + self._root.replace(".", "/") + key.rsplit("/", 1)[0] + "/"
         self._settingsmap[settingskey] = Gio.Settings.new_with_path(
                 schema, path)
@@ -105,7 +105,7 @@ class _SettingsWrapper(object):
         if settingskey in self._settingsmap:
             return True
 
-        schema = self._root + ".connection"
+        schema = f"{self._root}.connection"
         path = "/" + self._root.replace(".", "/") + key.rsplit("/", 1)[0] + "/"
         self._settingsmap[settingskey] = Gio.Settings.new_with_path(
                 schema, path)
@@ -115,7 +115,8 @@ class _SettingsWrapper(object):
         settings, key = self._find_settings(key)
         def wrapcb(*ignore):
             return cb(*args, **kwargs)
-        ret = settings.connect("changed::%s" % key, wrapcb, *args, **kwargs)
+
+        ret = settings.connect(f"changed::{key}", wrapcb, *args, **kwargs)
         self._handler_map[ret] = settings
         return ret
     def notify_remove(self, h):
@@ -197,7 +198,7 @@ class vmmConfig(object):
     def __init__(self, BuildConfig, CLITestOptions):
         self.appname = "virt-manager"
         self.appversion = BuildConfig.version
-        self.conf_dir = "/org/virt-manager/%s/" % self.appname
+        self.conf_dir = f"/org/virt-manager/{self.appname}/"
         self.ui_dir = BuildConfig.ui_dir
 
         self.conf = _SettingsWrapper("org.virt-manager.virt-manager",
@@ -254,13 +255,14 @@ class vmmConfig(object):
         return self.ui_dir
 
     def embeddable_graphics(self):
-        ret = ["vnc", "spice"]
-        return ret
+        return ["vnc", "spice"]
 
     def inspection_supported(self):
-        if not vmmInspection.libguestfs_installed():
-            return False  # pragma: no cover
-        return self.get_libguestfs_inspect_vms()
+        return (
+            self.get_libguestfs_inspect_vms()
+            if vmmInspection.libguestfs_installed()
+            else False
+        )
 
     def remove_notifier(self, h):
         self.conf.notify_remove(h)
@@ -280,7 +282,7 @@ class vmmConfig(object):
     #####################################
 
     def _make_pervm_key(self, uuid, key):
-        return "/vms/%s%s" % (uuid.replace("-", ""), key)
+        return f'/vms/{uuid.replace("-", "")}{key}'
 
     def listen_pervm(self, uuid, key, *args, **kwargs):
         key = self._make_pervm_key(uuid, key)
@@ -290,8 +292,7 @@ class vmmConfig(object):
     def set_pervm(self, uuid, key, *args, **kwargs):
         key = self._make_pervm_key(uuid, key)
         self.conf.make_vm_settings(key)
-        ret = self.conf.set(key, *args, **kwargs)
-        return ret
+        return self.conf.set(key, *args, **kwargs)
 
     def get_pervm(self, uuid, key):
         key = self._make_pervm_key(uuid, key)
@@ -304,7 +305,7 @@ class vmmConfig(object):
     ########################################
 
     def _make_perconn_key(self, uri, key):
-        return "/conns/%s%s" % (uri.replace("/", ""), key)
+        return f'/conns/{uri.replace("/", "")}{key}'
 
     def listen_perconn(self, uri, key, *args, **kwargs):
         key = self._make_perconn_key(uri, key)
@@ -314,8 +315,7 @@ class vmmConfig(object):
     def set_perconn(self, uri, key, *args, **kwargs):
         key = self._make_perconn_key(uri, key)
         self.conf.make_conn_settings(key)
-        ret = self.conf.set(key, *args, **kwargs)
-        return ret
+        return self.conf.set(key, *args, **kwargs)
 
     def get_perconn(self, uri, key):
         key = self._make_perconn_key(uri, key)
@@ -364,10 +364,7 @@ class vmmConfig(object):
     # Keys preferences
     def get_keys_combination(self):
         ret = self.conf.get("/console/grab-keys")
-        if not ret:
-            # Left Control + Left Alt
-            return "65507,65513"
-        return ret
+        return ret or "65507,65513"
     def set_keys_combination(self, val):
         # Val have to be a list of integers
         val = ','.join([str(v) for v in val])
@@ -543,12 +540,12 @@ class vmmConfig(object):
 
     # URL/Media path history
     def _url_add_helper(self, gsettings_path, url):
-        maxlength = 10
         urls = self.conf.get(gsettings_path) or []
 
         if urls.count(url) == 0 and len(url) > 0 and not url.isspace():
             # The url isn't already in the list, so add it
             urls.insert(0, url)
+            maxlength = 10
             if len(urls) > maxlength:
                 del urls[len(urls) - 1]  # pragma: no cover
             self.conf.set(gsettings_path, urls)
@@ -630,12 +627,10 @@ class vmmConfig(object):
     def get_default_directory(self, conn, _type):
         ignore = conn
         browsedata = self.browse_reason_data.get(_type, {})
-        key = browsedata.get("gsettings_key", None)
-        path = None
-
-        if key:
-            path = self.conf.get("/paths/%s-default" % key)
-
+        if key := browsedata.get("gsettings_key", None):
+            path = self.conf.get(f"/paths/{key}-default")
+        else:
+            path = None
         log.debug("directory for type=%s returning=%s", _type, path)
         return path
 
@@ -646,4 +641,4 @@ class vmmConfig(object):
             return  # pragma: no cover
 
         log.debug("saving directory for type=%s to %s", key, folder)
-        self.conf.set("/paths/%s-default" % key, folder)
+        self.conf.set(f"/paths/{key}-default", folder)

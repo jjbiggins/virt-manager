@@ -44,9 +44,11 @@ def has_old_osinfo():
     # Some tests rely on newer osinfo data. Check for a new condition
     # here, and older tests will be skipped
     osname = "centos7.0"
-    if not virtinst.OSDB.lookup_os(osname):
-        return True
-    return not virtinst.OSDB.lookup_os(osname).supports_chipset_q35()
+    return (
+        not virtinst.OSDB.lookup_os(osname).supports_chipset_q35()
+        if virtinst.OSDB.lookup_os(osname)
+        else True
+    )
 
 
 class _URIs(object):
@@ -56,29 +58,37 @@ class _URIs(object):
         self._testdriver_error = None
         self._testdriver_default = None
 
-        _capspath = DATADIR + "/capabilities/"
+        _capspath = f"{DATADIR}/capabilities/"
         def _domcaps(path):
-            return ",domcaps=" + _capspath + path
+            return f",domcaps={_capspath}{path}"
+
         def _caps(path):
-            return ",caps=" + _capspath + path
+            return f",caps={_capspath}{path}"
 
         _testtmpl = "__virtinst_test__test://%s,predictable"
-        _testdriverdir = DATADIR + "/testdriver/"
+        _testdriverdir = f"{DATADIR}/testdriver/"
         # We don't use actual test:///default, which saves state
         # for the lifetime of the process which can cause weird
         # trickling effects for the testsuite. We use our own
         # test XML which roughly matches test:///default, and then
         # fake the URI
-        self.test_default = _testtmpl % (_testdriverdir + "testdefault.xml") + ",fakeuri=test:///default"
+        self.test_default = (
+            _testtmpl % f"{_testdriverdir}testdefault.xml"
+            + ",fakeuri=test:///default"
+        )
 
-        self.test_full = _testtmpl % (_testdriverdir + "testdriver.xml")
-        self.test_suite = _testtmpl % (_testdriverdir + "testsuite.xml")
-        self.test_defaultpool_collision = _testtmpl % (
-            _testdriverdir + "defaultpool-collision.xml")
-        self.test_empty = _testtmpl % (_testdriverdir + "empty.xml")
+
+        self.test_full = _testtmpl % f"{_testdriverdir}testdriver.xml"
+        self.test_suite = _testtmpl % f"{_testdriverdir}testsuite.xml"
+        self.test_defaultpool_collision = (
+            _testtmpl % f"{_testdriverdir}defaultpool-collision.xml"
+        )
+
+        self.test_empty = _testtmpl % f"{_testdriverdir}empty.xml"
 
         def _m(fakeuri):
-            return self.test_full + ",fakeuri=%s" % fakeuri
+            return f"{self.test_full},fakeuri={fakeuri}"
+
         self.test_remote = _m("test+tls://fakeuri.example.com/")
 
         self.xen = _m("xen:///") + _caps("xen-rhel5.4.xml")
@@ -244,9 +254,9 @@ def diff_compare(actual_out, filename=None, expect_out=None):
     if not expect_out.endswith("\n"):
         expect_out += "\n"
 
-    diff = xmlutil.diff(expect_out, actual_out,
-            filename or '', "Generated output")
-    if diff:
+    if diff := xmlutil.diff(
+        expect_out, actual_out, filename or '', "Generated output"
+    ):
         raise AssertionError("Conversion outputs did not match.\n%s" % diff)
 
 

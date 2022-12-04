@@ -128,10 +128,7 @@ class vmmStorageBrowser(vmmGObjectUI):
         self._finish(volume.get_target_path())
 
     def _vol_sensitive_cb(self, fmt):
-        if ((self._browse_reason == self.config.CONFIG_DIR_FS) and
-            fmt != 'dir'):
-            return False
-        return True
+        return self._browse_reason != self.config.CONFIG_DIR_FS or fmt == 'dir'
 
 
     ####################
@@ -143,16 +140,18 @@ class vmmStorageBrowser(vmmGObjectUI):
         dialog_name = None
         choose_button = None
 
-        data = self.config.browse_reason_data.get(self._browse_reason)
-        if data:
+        if data := self.config.browse_reason_data.get(self._browse_reason):
             dialog_name = data["local_title"] or None
             dialog_type = data.get("dialog_type")
             choose_button = data.get("choose_button")
 
-        filename = self.err.browse_local(self.conn,
-            dialog_type=dialog_type, browse_reason=self._browse_reason,
-            dialog_name=dialog_name, choose_button=choose_button)
-        if filename:
+        if filename := self.err.browse_local(
+            self.conn,
+            dialog_type=dialog_type,
+            browse_reason=self._browse_reason,
+            dialog_name=dialog_name,
+            choose_button=choose_button,
+        ):
             log.debug("Browse local chose path=%s", filename)
             self._finish(filename)
 

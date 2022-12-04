@@ -19,7 +19,7 @@ def _vm_wrapper(vmname, uri="qemu:///system", opts=None):
     def wrap1(fn):
         def wrapper(app, *args, **kwargs):
             app.error_if_already_running()
-            xmlfile = "%s/live/%s.xml" % (tests.utils.UITESTDATADIR, vmname)
+            xmlfile = f"{tests.utils.UITESTDATADIR}/live/{vmname}.xml"
             conn = libvirt.open(uri)
             dom = conn.defineXML(open(xmlfile).read())
             try:
@@ -45,7 +45,9 @@ def _vm_wrapper(vmname, uri="qemu:///system", opts=None):
                     dom.destroy()
                 except Exception:
                     pass
+
         return wrapper
+
     return wrap1
 
 
@@ -491,8 +493,8 @@ def testLiveHotplug(app, dom):
     dname = tmpdir.name
     try:
         fname = os.path.join(dname, "test.img")
-        os.system("qemu-img create -f qcow2 %s 1M > /dev/null" % fname)
-        os.system("chmod 700 %s" % dname)
+        os.system(f"qemu-img create -f qcow2 {fname} 1M > /dev/null")
+        os.system(f"chmod 700 {dname}")
         _testLiveHotplug(app, fname)
     finally:
         poolname = os.path.basename(dname)
@@ -514,16 +516,16 @@ def testFirmwareRename(app, dom):
     # check if nvram files are created/deleted as expected
     conn = cli.getConnection(app.conn.getURI())
     origname = dom.name()
-    nvramdir = conn.get_libvirt_data_root_dir() + "/qemu/nvram"
+    nvramdir = f"{conn.get_libvirt_data_root_dir()}/qemu/nvram"
 
     fakedisk = DeviceDisk(conn)
-    fakedisk.set_source_path(nvramdir + "/FAKE-UITEST-FILE")
+    fakedisk.set_source_path(f"{nvramdir}/FAKE-UITEST-FILE")
     nvram_pool = fakedisk.get_parent_pool()
     nvram_pool.refresh()
 
-    origpath = "%s/%s_VARS.fd" % (nvramdir, origname)
+    origpath = f"{nvramdir}/{origname}_VARS.fd"
     newname = "uitests-firmware-efi-renamed"
-    newpath = "%s/%s_VARS.fd" % (nvramdir, newname)
+    newpath = f"{nvramdir}/{newname}_VARS.fd"
     assert DeviceDisk.path_definitely_exists(app.conn, origpath)
     assert not DeviceDisk.path_definitely_exists(app.conn, newpath)
 
@@ -539,7 +541,7 @@ def testFirmwareRename(app, dom):
     lib.utils.check(lambda: not appl.sensitive)
 
     # Confirm window was updated
-    app.find_window("%s on" % newname)
+    app.find_window(f"{newname} on")
 
     # Confirm nvram paths were altered as expected
     assert not DeviceDisk.path_definitely_exists(app.conn, origpath)

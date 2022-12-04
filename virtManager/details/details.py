@@ -160,9 +160,7 @@ def _label_for_device(dev, disk_bus_index):
         if dev.device == "floppy":
             return _("Floppy %(index)d") % {"index": disk_bus_index}
 
-        busstr = ""
-        if dev.bus:
-            busstr = vmmAddHardware.disk_pretty_bus(dev.bus)
+        busstr = vmmAddHardware.disk_pretty_bus(dev.bus) if dev.bus else ""
         if dev.device == "cdrom":
             return _("%(bus)s CDROM %(index)d") % {
                 "bus": busstr,
@@ -211,9 +209,10 @@ def _label_for_device(dev, disk_bus_index):
         # with the typical spice agent channel
         if name and dev.type != "qemu-vdagent":
             return _("Channel (%(name)s)") % {"type": pretty_type, "name": name}
-        return _("Channel %(type)s") % {"type": pretty_type}
+        else:
+            return _("Channel %(type)s") % {"type": pretty_type}
 
-    if devtype == "graphics":
+    elif devtype == "graphics":
         pretty = vmmGraphicsDetails.graphics_pretty_type_simple(dev.type)
         return _("Display %s") % pretty
     if devtype == "redirdev":
@@ -240,9 +239,7 @@ def _label_for_device(dev, disk_bus_index):
             "controller": vmmAddHardware.controller_pretty_desc(dev),
         }
     if devtype == "rng":
-        if dev.device:
-            return _("RNG %(device)s") % {"device": dev.device}
-        return _("RNG")
+        return _("RNG %(device)s") % {"device": dev.device} if dev.device else _("RNG")
     if devtype == "tpm":
         if dev.device_path:
             return _("TPM %(device)s") % {"device": dev.device_path}
@@ -270,18 +267,13 @@ def _icon_for_device(dev):
     if devtype == "input":
         if dev.type == "keyboard":
             return "input-keyboard"
-        if dev.type == "tablet":
-            return "input-tablet"
-        return "input-mouse"
-
+        else:
+            return "input-tablet" if dev.type == "tablet" else "input-mouse"
     if devtype == "redirdev":
         return "device_usb"
 
     if devtype == "hostdev":
-        if dev.type == "usb":
-            return "device_usb"
-        return "device_pci"
-
+        return "device_usb" if dev.type == "usb" else "device_pci"
     typemap = {
         "interface": "network-idle",
         "graphics": "video-display",
@@ -304,9 +296,7 @@ def _icon_for_device(dev):
 
 
 def _chipset_label_from_machine(machine):
-    if machine and "q35" in machine:
-        return "Q35"
-    return "i440FX"
+    return "Q35" if machine and "q35" in machine else "i440FX"
 
 
 def _get_performance_icon_name():
@@ -894,10 +884,11 @@ class vmmDetails(vmmGObjectUI):
             return False
 
         log.debug("Unapplied changes active_edits=%s", self._active_edits)
-        if not self.err.confirm_unapplied_changes():
-            return False
-
-        return not self._config_apply(row=row)
+        return (
+            not self._config_apply(row=row)
+            if self.err.confirm_unapplied_changes()
+            else False
+        )
 
     def _hw_changed_cb(self, src):
         """
@@ -909,19 +900,20 @@ class vmmDetails(vmmGObjectUI):
         if not newrow or newrow[HW_LIST_COL_KEY] == self._oldhwkey:
             return
 
-        oldhwrow = None
-        for row in model:
-            if row[HW_LIST_COL_KEY] == self._oldhwkey:
-                oldhwrow = row
-                break
+        oldhwrow = next(
+            (row for row in model if row[HW_LIST_COL_KEY] == self._oldhwkey), None
+        )
 
         if self._has_unapplied_changes(oldhwrow):
-            # Unapplied changes, and syncing them failed
-            pageidx = 0
-            for idx, row in enumerate(model):
-                if row[HW_LIST_COL_KEY] == self._oldhwkey:
-                    pageidx = idx
-                    break
+            pageidx = next(
+                (
+                    idx
+                    for idx, row in enumerate(model)
+                    if row[HW_LIST_COL_KEY] == self._oldhwkey
+                ),
+                0,
+            )
+
             self._set_hw_selection(pageidx, _disable_apply=False)
         else:
             self._oldhwkey = newrow[HW_LIST_COL_KEY]
@@ -940,9 +932,8 @@ class vmmDetails(vmmGObjectUI):
         active = self.vm.is_active()
         self.widget("overview-name").set_editable(not active)
 
-        reason = self.vm.run_status_reason()
-        if reason:
-            status = "%s (%s)" % (self.vm.run_status(), reason)
+        if reason := self.vm.run_status_reason():
+            status = f"{self.vm.run_status()} ({reason})"
         else:
             status = self.vm.run_status()
         self.widget("overview-status-text").set_text(status)
@@ -971,12 +962,16 @@ class vmmDetails(vmmGObjectUI):
         self._refresh_page()
 
     def vmwindow_activate_performance_page(self):
-        index = 0
         model = self.widget("hw-list").get_model()
-        for idx, row in enumerate(model):
-            if row[HW_LIST_COL_TYPE] == HW_LIST_TYPE_STATS:
-                index = idx
-                break
+        index = next(
+            (
+                idx
+                for idx, row in enumerate(model)
+                if row[HW_LIST_COL_TYPE] == HW_LIST_TYPE_STATS
+            ),
+            0,
+        )
+
         self._set_hw_selection(index)
 
     def vmwindow_has_unapplied_changes(self):
@@ -1006,15 +1001,15 @@ class vmmDetails(vmmGObjectUI):
                 text1=(_("Are you sure you want to remove this device?"))):
             return
 
-        success = vmmDeleteStorage.remove_devobj_internal(
-                self.vm, self.err, devobj)
-        if not success:
+        if success := vmmDeleteStorage.remove_devobj_internal(
+            self.vm, self.err, devobj
+        ):
+            # This call here means when the vm config changes and triggers
+            # refresh event, the UI page will be updated, rather than leaving
+            # it untouched because it thinks changes are in progress
+            self._disable_apply()
+        else:
             return
-
-        # This call here means when the vm config changes and triggers
-        # refresh event, the UI page will be updated, rather than leaving
-        # it untouched because it thinks changes are in progress
-        self._disable_apply()
 
     def _remove_disk(self, disk):
         dialog = vmmDeleteStorage(disk)
@@ -1034,13 +1029,7 @@ class vmmDetails(vmmGObjectUI):
 
     def _get_config_boot_order(self):
         boot_model = self.widget("boot-list").get_model()
-        devs = []
-
-        for row in boot_model:
-            if row[BOOT_ACTIVE]:
-                devs.append(row[BOOT_KEY])
-
-        return devs
+        return [row[BOOT_KEY] for row in boot_model if row[BOOT_ACTIVE]]
 
     def _get_config_boot_selection(self):
         return uiutil.get_list_selected_row(self.widget("boot-list"))
@@ -1053,17 +1042,17 @@ class vmmDetails(vmmGObjectUI):
         if self.widget("cpu-copy-host").get_active():
             return virtinst.DomainCpu.SPECIAL_MODE_HOST_PASSTHROUGH
 
-        key = None
-        for row in cpu_list.get_model():
-            if text == row[0]:
-                key = row[2]
-                break
-        if not key:
-            return text
+        if key := next(
+            (row[2] for row in cpu_list.get_model() if text == row[0]), None
+        ):
+            return (
+                self.config.get_default_cpu_setting()
+                if key == virtinst.DomainCpu.SPECIAL_MODE_APP_DEFAULT
+                else key
+            )
 
-        if key == virtinst.DomainCpu.SPECIAL_MODE_APP_DEFAULT:
-            return self.config.get_default_cpu_setting()
-        return key
+        else:
+            return text
 
     def _get_config_vcpus(self):
         return uiutil.spin_get_helper(self.widget("cpu-vcpus"))
@@ -1100,8 +1089,7 @@ class vmmDetails(vmmGObjectUI):
 
     def _inspection_refresh_clicked_cb(self, src):
         from ..lib.inspection import vmmInspection
-        inspection = vmmInspection.get_instance()
-        if inspection:
+        if inspection := vmmInspection.get_instance():
             inspection.vm_refresh(self.vm)
 
     def _os_list_name_selected_cb(self, src, osobj):
@@ -1126,7 +1114,7 @@ class vmmDetails(vmmGObjectUI):
         cur = self._get_config_vcpus()
 
         # Warn about overcommit
-        warn = bool(cur > host_active_count)
+        warn = cur > host_active_count
         self.widget("cpu-vcpus-warn-box").set_visible(warn)
 
     def _cpu_copy_host_clicked_cb(self, src):
@@ -1205,11 +1193,7 @@ class vmmDetails(vmmGObjectUI):
         row_key = row[BOOT_KEY]
         boot_order = self._get_config_boot_order()
         key_idx = boot_order.index(row_key)
-        if move_up:
-            new_idx = key_idx - 1
-        else:
-            new_idx = key_idx + 1
-
+        new_idx = key_idx - 1 if move_up else key_idx + 1
         if new_idx < 0 or new_idx >= len(boot_order):
             # Somehow we went out of bounds
             return  # pragma: no cover
@@ -1499,8 +1483,7 @@ class vmmDetails(vmmGObjectUI):
         if self._edited(EDIT_DISK_PATH):
             path = self._mediacombo.get_path()
 
-            names = virtinst.DeviceDisk.path_in_use_by(devobj.conn, path)
-            if names:
+            if names := virtinst.DeviceDisk.path_in_use_by(devobj.conn, path):
                 msg = (_("Disk '%(path)s' is already in use by other "
                        "guests %(names)s") %
                        {"path": path, "names": names})
@@ -1514,7 +1497,7 @@ class vmmDetails(vmmGObjectUI):
 
         if self._edited(EDIT_DISK):
             vals = self._addstorage.get_values()
-            kwargs.update(vals)
+            kwargs |= vals
 
         if self._edited(EDIT_DISK_BUS):
             kwargs["bus"] = uiutil.get_list_selection(
@@ -1527,8 +1510,7 @@ class vmmDetails(vmmGObjectUI):
         kwargs = {}
 
         if self._edited(EDIT_SOUND_MODEL):
-            model = uiutil.get_list_selection(self.widget("sound-model"))
-            if model:
+            if model := uiutil.get_list_selection(self.widget("sound-model")):
                 kwargs["model"] = model
 
         return self._change_config(
@@ -1538,8 +1520,7 @@ class vmmDetails(vmmGObjectUI):
         kwargs = {}
 
         if self._edited(EDIT_SMARTCARD_MODE):
-            model = uiutil.get_list_selection(self.widget("smartcard-mode"))
-            if model:
+            if model := uiutil.get_list_selection(self.widget("smartcard-mode")):
                 kwargs["model"] = model
 
         return self._change_config(
@@ -1569,10 +1550,7 @@ class vmmDetails(vmmGObjectUI):
                 self.vm.define_network, kwargs, devobj=devobj)
 
     def _apply_graphics(self, devobj):
-        kwargs = {}
-        if self._edited(EDIT_GFX):
-            kwargs = self.gfxdetails.get_values()
-
+        kwargs = self.gfxdetails.get_values() if self._edited(EDIT_GFX) else {}
         return self._change_config(
                 self.vm.define_graphics, kwargs, devobj=devobj)
 
@@ -1580,8 +1558,7 @@ class vmmDetails(vmmGObjectUI):
         kwargs = {}
 
         if self._edited(EDIT_VIDEO_MODEL):
-            model = uiutil.get_list_selection(self.widget("video-model"))
-            if model:
+            if model := uiutil.get_list_selection(self.widget("video-model")):
                 kwargs["model"] = model
 
         if self._edited(EDIT_VIDEO_3D):
@@ -1807,11 +1784,11 @@ class vmmDetails(vmmGObjectUI):
                 name = app.name
             version = ""
             if app.epoch > 0:
-                version += str(app.epoch) + ":"
+                version += f"{str(app.epoch)}:"
             if app.version:
                 version += app.version
             if app.release:
-                version += "-" + app.release
+                version += f"-{app.release}"
             summary = ""
             if app.summary:
                 summary = app.summary
@@ -1819,9 +1796,7 @@ class vmmDetails(vmmGObjectUI):
                 summary = app.description
                 pos = summary.find("\n")
                 if pos > -1:
-                    summary = _("%(summary)s ...") % {
-                        "summary": summary[0:pos]
-                    }
+                    summary = (_("%(summary)s ...") % {"summary": summary[:pos]})
 
             apps_model.append([name, version, summary])
 
@@ -1909,7 +1884,7 @@ class vmmDetails(vmmGObjectUI):
         self._sync_cpu_topology_ui()
 
         # Warn about overcommit
-        warn = bool(self._get_config_vcpus() > host_active_count)
+        warn = self._get_config_vcpus() > host_active_count
         self.widget("cpu-vcpus-warn-box").set_visible(warn)
 
         # CPU model config
@@ -1925,10 +1900,10 @@ class vmmDetails(vmmGObjectUI):
                 self.widget("cpu-model"),
                 virtinst.DomainCpu.SPECIAL_MODE_HV_DEFAULT, column=2)
 
-        self.widget("cpu-copy-host").set_active(bool(is_host))
+        self.widget("cpu-copy-host").set_active(is_host)
         text = _("Copy host CP_U configuration")
         if is_host:
-            text += " (%s)" % cpu.mode
+            text += f" ({cpu.mode})"
         self.widget("cpu-copy-host").set_label(text)
         self._cpu_copy_host_clicked_cb(self.widget("cpu-copy-host"))
 
@@ -1967,8 +1942,7 @@ class vmmDetails(vmmGObjectUI):
         size = "-"
         if path:
             size = _("Unknown")
-            vol = self.conn.get_vol_by_path(path)
-            if vol:
+            if vol := self.conn.get_vol_by_path(path):
                 size = vol.get_pretty_capacity()
 
         pretty_name = self._get_hw_row_label_for_device(disk)
@@ -2032,7 +2006,7 @@ class vmmDetails(vmmGObjectUI):
         pretty_type = vmmGraphicsDetails.graphics_pretty_type_simple(gfx.type)
         title = (_("%(graphicstype)s Server") % {"graphicstype": pretty_type})
         self.gfxdetails.set_dev(gfx)
-        self.widget("graphics-title").set_markup("<b>%s</b>" % title)
+        self.widget("graphics-title").set_markup(f"<b>{title}</b>")
 
     def _refresh_sound_page(self, sound):
         uiutil.set_list_selection(self.widget("sound-model"), sound.model)
@@ -2041,10 +2015,7 @@ class vmmDetails(vmmGObjectUI):
         uiutil.set_list_selection(self.widget("smartcard-mode"), sc.mode)
 
     def _refresh_redir_page(self, rd):
-        address = None
-        if rd.type == 'tcp':
-            address = "%s:%s" % (rd.source.host, rd.source.service)
-
+        address = f"{rd.source.host}:{rd.source.service}" if rd.type == 'tcp' else None
         title = self._get_hw_row_label_for_device(rd)
         self.widget("redir-title").set_markup(title)
         self.widget("redir-type").set_text(
@@ -2078,7 +2049,7 @@ class vmmDetails(vmmGObjectUI):
         target_port = chardev.target_port
         dev_type = chardev.type or "pty"
         primary = self.vm.serial_is_console_dup(chardev)
-        show_target_type = not (char_type in ["serial", "parallel"])
+        show_target_type = char_type not in ["serial", "parallel"]
         is_qemuga = chardev.target_name == chardev.CHANNEL_NAME_QEMUGA
         show_clipboard = chardev.type == chardev.TYPE_QEMUVDAGENT
 
@@ -2095,12 +2066,12 @@ class vmmDetails(vmmGObjectUI):
 
         if (target_port is not None and
                 chardev.DEVICE_TYPE == "console"):
-            typelabel += " %s" % (int(target_port) + 1)
+            typelabel += f" {int(target_port) + 1}"
         if target_port is not None and not show_target_type:
-            typelabel += " %s" % (int(target_port) + 1)
+            typelabel += f" {int(target_port) + 1}"
         if primary:
-            typelabel += " (%s)" % _("Primary Console")
-        typelabel = "<b>%s</b>" % typelabel
+            typelabel += f' ({_("Primary Console")})'
+        typelabel = f"<b>{typelabel}</b>"
 
         self.widget("char-type").set_markup(typelabel)
         self.widget("char-dev-type").set_text(dev_type)
@@ -2116,7 +2087,7 @@ class vmmDetails(vmmGObjectUI):
             if host:
                 ret += host
             if port:
-                ret += ":%s" % str(port)
+                ret += f":{str(port)}"
             return ret
 
         connect_str = build_host_str(
@@ -2152,9 +2123,7 @@ class vmmDetails(vmmGObjectUI):
             if trydev.xmlobj.compare_to_hostdev(hostdev):
                 nodedev = trydev
 
-        pretty_name = None
-        if nodedev:
-            pretty_name = nodedev.pretty_name()
+        pretty_name = nodedev.pretty_name() if nodedev else None
         if not pretty_name:
             pretty_name = vmmAddHardware.hostdev_pretty_name(hostdev)
 
@@ -2217,8 +2186,7 @@ class vmmDetails(vmmGObjectUI):
                     self.widget("controller-device-box"), True)
 
         elif controller.type == "virtio-serial":
-            devs = controller.get_attached_devices(self.vm.xmlobj)
-            if devs:
+            if devs := controller.get_attached_devices(self.vm.xmlobj):
                 self._disable_device_remove(
                     _("Cannot remove controller while devices are attached."))
 

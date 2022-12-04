@@ -37,10 +37,7 @@ class DevicePanic(Device):
 
     @staticmethod
     def get_default_model(guest):
-        models = DevicePanic.get_models(guest)
-        if models:
-            return models[0]
-        return None
+        return models[0] if (models := DevicePanic.get_models(guest)) else None
 
     def set_defaults(self, guest):
         if not self.address.type and self.address.iobase:

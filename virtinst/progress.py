@@ -47,6 +47,4 @@ def make_meter(quiet):
 
 
 def ensure_meter(meter):
-    if meter:
-        return meter
-    return make_meter(quiet=True)
+    return meter or make_meter(quiet=True)

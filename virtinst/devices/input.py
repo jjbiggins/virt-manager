@@ -45,9 +45,7 @@ class DeviceInput(Device):
         # accept such XML either.
         if self.type == self.TYPE_EVDEV:
             return None
-        if self.conn.is_xen():
-            return self.BUS_XEN
-        return self.BUS_PS2
+        return self.BUS_XEN if self.conn.is_xen() else self.BUS_PS2
 
     def set_defaults(self, guest):
         if not self.type:

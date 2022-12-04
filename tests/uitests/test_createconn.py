@@ -64,10 +64,13 @@ def testConnect(app):
     app.click_alert_button("hostname is required", "OK")
     fakeipv6 = "fe80::1"
     host.set_text(fakeipv6)
-    lib.utils.check(lambda: urilabel.text == "xen+ssh://fribuser@[%s]/" % fakeipv6)
+    lib.utils.check(lambda: urilabel.text == f"xen+ssh://fribuser@[{fakeipv6}]/")
     fakehost = "ix8khfyidontexistkdjur.com"
-    host.set_text(fakehost + ":12345")
-    lib.utils.check(lambda: urilabel.text == "xen+ssh://fribuser@%s:12345/" % fakehost)
+    host.set_text(f"{fakehost}:12345")
+    lib.utils.check(
+        lambda: urilabel.text == f"xen+ssh://fribuser@{fakehost}:12345/"
+    )
+
     connect.click()
 
     lib.utils.check(lambda: win.showing is True)

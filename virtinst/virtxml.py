@@ -22,7 +22,7 @@ from . import xmlutil
 
 def prompt_yes_or_no(msg):
     while 1:
-        printmsg = msg + " (y/n): "
+        printmsg = f"{msg} (y/n): "
         sys.stdout.write(printmsg)
         sys.stdout.flush()
         inp = sys.stdin.readline().lower().strip()
@@ -104,8 +104,7 @@ def _find_objects_to_edit(guest, action_name, editval, parserclass):
         parserobj = parserclass(editval, guest=guest)
         inst = parserobj.lookup_child_from_option_string()
         if not inst:
-            fail(_("No matching objects found for %s") %
-                 ("--%s %s" % (action_name, editval)))
+            fail((_("No matching objects found for %s") % f"--{action_name} {editval}"))
 
     return inst
 
@@ -119,21 +118,26 @@ def check_action_collision(options):
         if getattr(options, optname) not in [False, -1]:
             collisions.append(cliname)
 
-    if len(collisions) == 0:
-        fail(_("One of %s must be specified.") %
-             ", ".join(["--" + c for c in actions]))
+    if not collisions:
+        fail(
+            (
+                _("One of %s must be specified.")
+                % ", ".join([f"--{c}" for c in actions])
+            )
+        )
+
     if len(collisions) > 1:
-        fail(_("Conflicting options %s") %
-             ", ".join(["--" + c for c in collisions]))
+        fail((_("Conflicting options %s") % ", ".join([f"--{c}" for c in collisions])))
 
 
 def check_xmlopt_collision(options):
-    collisions = []
-    for parserclass in cli.VIRT_PARSERS + [cli.ParserXML]:
-        if getattr(options, parserclass.cli_arg_name):
-            collisions.append(parserclass)
+    collisions = [
+        parserclass
+        for parserclass in cli.VIRT_PARSERS + [cli.ParserXML]
+        if getattr(options, parserclass.cli_arg_name)
+    ]
 
-    if len(collisions) == 0:
+    if not collisions:
         fail(_("No change specified."))
     if len(collisions) != 1:
         fail(_("Only one change operation may be specified "
@@ -191,8 +195,7 @@ def action_remove_device(guest, options, parserclass):
 
     # Check for console duplicate devices
     for dev in devs[:]:
-        condup = DeviceConsole.get_console_duplicate(guest, dev)
-        if condup:
+        if condup := DeviceConsole.get_console_duplicate(guest, dev):
             log.debug("Found duplicate console device:\n%s", condup.get_xml())
             devs.append(condup)
 
@@ -223,10 +226,10 @@ def setup_device(dev):
 
 
 def define_changes(conn, inactive_xmlobj, devs, action, confirm):
-    if confirm:
-        if not prompt_yes_or_no(
-                _("Define '%s' with the changed XML?") % inactive_xmlobj.name):
-            return False
+    if confirm and not prompt_yes_or_no(
+        _("Define '%s' with the changed XML?") % inactive_xmlobj.name
+    ):
+        return False
 
     if action == "hotplug":
         for dev in devs:
@@ -238,10 +241,10 @@ def define_changes(conn, inactive_xmlobj, devs, action, confirm):
 
 
 def start_domain_transient(conn, xmlobj, devs, action, confirm):
-    if confirm:
-        if not prompt_yes_or_no(
-                _("Start '%s' with the changed XML?") % xmlobj.name):
-            return False
+    if confirm and not prompt_yes_or_no(
+        _("Start '%s' with the changed XML?") % xmlobj.name
+    ):
+        return False
 
     if action == "hotplug":
         for dev in devs:
@@ -451,26 +454,21 @@ def main(conn=None):
 
     options.stdinxml = None
     if not options.domain and not options.build_xml:
-        if not sys.stdin.closed and not sys.stdin.isatty():
+        if sys.stdin.closed or sys.stdin.isatty():
+            fail(_("A domain must be specified"))
+
+        else:
             if options.confirm:
                 fail(_("Can't use --confirm with stdin input."))
             if options.update:
                 fail(_("Can't use --update with stdin input."))
             options.stdinxml = sys.stdin.read()
-        else:
-            fail(_("A domain must be specified"))
-
-    # Default to --define, unless:
-    #  --no-define explicitly specified
-    #  --print-* option is used
-    #  XML input came from stdin
     if not options.print_xml and not options.print_diff:
         if options.stdinxml:
             if not options.define:
                 options.print_xml = True
-        else:
-            if options.define is None:
-                options.define = True
+        elif options.define is None:
+            options.define = True
     if options.confirm and not options.print_xml:
         options.print_diff = True
 
@@ -511,7 +509,7 @@ def main(conn=None):
     devs = None
     performed_update = False
     if options.update:
-        if options.update and options.start:
+        if options.start:
             fail_conflicting("--update", "--start")
         if vm_is_running:
             devs, action, dummy = prepare_changes(

@@ -20,8 +20,7 @@ def sanitize_xml_for_test_define(xml):
     xml = re.sub(">exe<", ">hvm<", xml)
     xml = re.sub(">linux<", ">xen<", xml)
 
-    diff = xmlutil.diff(orig, xml)
-    if diff:
+    if diff := xmlutil.diff(orig, xml):
         log.debug("virtinst test sanitizing diff\n:%s", diff)
     return xml
 
@@ -77,7 +76,7 @@ class URI(object):
                 netloc, uri = splitnetloc(uri, 2)
                 offset = netloc.find("@")
                 if offset > 0:
-                    username = netloc[0:offset]
+                    username = netloc[:offset]
                     netloc = netloc[offset + 1:]
             if '#' in uri:
                 uri, fragment = uri.split('#', 1)
@@ -152,7 +151,7 @@ class MagicURI(object):
 
         self._err = None
         if opts:
-            self._err = "MagicURI has unhandled opts=%s" % opts
+            self._err = f"MagicURI has unhandled opts={opts}"
 
 
     ##############
@@ -186,7 +185,7 @@ class MagicURI(object):
 
                 ret = domcapsxml
                 if arch:
-                    ret = re.sub("arch>.+</arch", "arch>%s</arch" % arch, ret)
+                    ret = re.sub("arch>.+</arch", f"arch>{arch}</arch", ret)
                 return ret
 
             conn.getDomainCapabilities = fake_domcaps

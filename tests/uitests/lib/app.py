@@ -60,7 +60,7 @@ class VMMDogtailApp(object):
 
     def find_details_window(self, vmname,
             click_details=False, shutdown=False):
-        win = self.find_window("%s on" % vmname, "frame")
+        win = self.find_window(f"{vmname} on", "frame")
         if click_details:
             win.find("Details", "radio button").click()
         if shutdown:
@@ -95,8 +95,7 @@ class VMMDogtailApp(object):
         manager = self.get_manager()
         manager.find("File", "menu").click()
         manager.find("Add Connection...", "menu item").click()
-        win = self.root.find("Add Connection", "dialog")
-        return win
+        return self.root.find("Add Connection", "dialog")
 
     def manager_createconn(self, uri):
         win = self.manager_open_createconn()
@@ -203,9 +202,9 @@ class VMMDogtailApp(object):
 
     def manager_open_details(self, vmname, shutdown=False):
         self.manager_vm_action(vmname, details=True)
-        win = self.find_details_window(vmname,
-                shutdown=shutdown, click_details=True)
-        return win
+        return self.find_details_window(
+            vmname, shutdown=shutdown, click_details=True
+        )
 
     def manager_open_host(self, tab, conn_label="test testdriver.xml"):
         """
@@ -214,7 +213,7 @@ class VMMDogtailApp(object):
         self.root.find_fuzzy(conn_label, "table cell").click()
         self.root.find_fuzzy("Edit", "menu").click()
         self.root.find_fuzzy("Connection Details", "menu item").click()
-        win = self.find_window("%s - Connection Details" % conn_label)
+        win = self.find_window(f"{conn_label} - Connection Details")
         win.find_fuzzy(tab, "page tab").click()
         return win
 
@@ -315,14 +314,14 @@ class VMMDogtailApp(object):
         if use_uri:
             cmd += ["--connect", uri]
         if show_console:
-            cmd += ["--show-domain-console=%s" % show_console]
+            cmd += [f"--show-domain-console={show_console}"]
 
         if first_run:
             cmd.append("--test-options=first-run")
             if not firstrun_uri:
                 firstrun_uri = ""
         if firstrun_uri is not None:
-            cmd.append("--test-options=firstrun-uri=%s" % firstrun_uri)
+            cmd.append(f"--test-options=firstrun-uri={firstrun_uri}")
         if xmleditor_enabled:
             cmd.append("--test-options=xmleditor-enabled")
         if break_setfacl:
@@ -334,11 +333,11 @@ class VMMDogtailApp(object):
         if keyfile:
             import atexit
             import tempfile
-            keyfile = tests.utils.UITESTDATADIR + "/keyfile/" + keyfile
+            keyfile = f"{tests.utils.UITESTDATADIR}/keyfile/{keyfile}"
             tempname = tempfile.mktemp(prefix="virtmanager-uitests-keyfile")
             open(tempname, "w").write(open(keyfile).read())
             atexit.register(lambda: os.unlink(tempname))
-            cmd.append("--test-options=gsettings-keyfile=%s" % tempname)
+            cmd.append(f"--test-options=gsettings-keyfile={tempname}")
 
         cmd += extra_opts
 

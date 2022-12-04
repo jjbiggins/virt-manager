@@ -64,15 +64,15 @@ def _get_block_size(path):  # pragma: no cover
 def _get_size(path):
     if not os.path.exists(path):
         return 0
-    if _stat_is_block(path):
-        return _get_block_size(path)  # pragma: no cover
-    return os.path.getsize(path)
+    return _get_block_size(path) if _stat_is_block(path) else os.path.getsize(path)
 
 
 def _stat_is_block(path):
-    if not os.path.exists(path):
-        return False
-    return stat.S_ISBLK(os.stat(path)[stat.ST_MODE])
+    return (
+        stat.S_ISBLK(os.stat(path)[stat.ST_MODE])
+        if os.path.exists(path)
+        else False
+    )
 
 
 def _check_if_path_managed(conn, path):
@@ -114,15 +114,15 @@ def _check_if_path_managed(conn, path):
 
 def _can_auto_manage(path):
     path = path or ""
-    skip_prefixes = ["/dev", "/sys", "/proc"]
-
     if path_is_url(path):
         return False
 
-    for prefix in skip_prefixes:
-        if path.startswith(prefix + "/") or path == prefix:
-            return False
-    return True
+    skip_prefixes = ["/dev", "/sys", "/proc"]
+
+    return not any(
+        path.startswith(f"{prefix}/") or path == prefix
+        for prefix in skip_prefixes
+    )
 
 
 def _get_storage_search_path(path):
@@ -131,9 +131,7 @@ def _get_storage_search_path(path):
     # for looking up storage volumes by target path
     from .uri import URI
     uriobj = URI(path)
-    if uriobj.scheme == "rbd":
-        return uriobj.path.strip("/")
-    return path
+    return uriobj.path.strip("/") if uriobj.scheme == "rbd" else path
 
 
 def manage_path(conn, path):
@@ -181,10 +179,14 @@ def path_is_network_vol(conn, path):
     """
     Detect if path is a network volume such as rbd, gluster, etc
     """
-    for volxml in conn.fetch_all_vols():
-        if path and volxml.target_path == path:
-            return volxml.type == "network"
-    return False
+    return next(
+        (
+            volxml.type == "network"
+            for volxml in conn.fetch_all_vols()
+            if path and volxml.target_path == path
+        ),
+        False,
+    )
 
 
 def _get_dev_type(path, vol_xml, vol_object, pool_xml, remote):
@@ -223,11 +225,10 @@ def _get_dev_type(path, vol_xml, vol_object, pool_xml, remote):
                 # block device, because managing those correctly is difficult
                 return "block"
 
-        else:
-            if os.path.isdir(path):
-                return "dir"
-            elif _stat_is_block(path):
-                return "block"  # pragma: no cover
+        elif os.path.isdir(path):
+            return "dir"
+        elif _stat_is_block(path):
+            return "block"  # pragma: no cover
 
     return "file"
 
@@ -262,7 +263,7 @@ SETFACL = "setfacl"
 
 
 def _fix_perms_acl(dirname, username):
-    cmd = [SETFACL, "--modify", "user:%s:x" % username, dirname]
+    cmd = [SETFACL, "--modify", f"user:{username}:x", dirname]
     proc = subprocess.Popen(cmd,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
@@ -344,7 +345,7 @@ def _is_dir_searchable(dirname, uid, username):
         log.debug("Cmd '%s' failed: %s", cmd, err)
         return False
 
-    pattern = "user:%s:..x" % username
+    pattern = f"user:{username}:..x"
     return bool(re.search(pattern.encode("utf-8", "replace"), out))
 
 
@@ -466,9 +467,8 @@ class _StorageCreator(_StorageBase):
         return self._dev_type
 
     def get_driver_type(self):
-        if self._vol_install:
-            if self._vol_install.supports_format():
-                return self._vol_install.format
+        if self._vol_install and self._vol_install.supports_format():
+            return self._vol_install.format
         return "raw"
 
     def will_create_storage(self):
@@ -476,9 +476,7 @@ class _StorageCreator(_StorageBase):
     def get_vol_object(self):
         return None
     def get_parent_pool(self):
-        if self._vol_install:
-            return self._vol_install.pool
-        return None
+        return self._vol_install.pool if self._vol_install else None
     def exists(self):
         return False
 
@@ -607,37 +605,36 @@ class CloneStorageCreator(_StorageCreator):
 
         src_fd, dst_fd = None, None
         try:
-            try:
-                src_fd = os.open(self._input_path, os.O_RDONLY)
-                dst_fd = os.open(self._output_path,
-                                 os.O_WRONLY | os.O_CREAT, 0o640)
+            src_fd = os.open(self._input_path, os.O_RDONLY)
+            dst_fd = os.open(self._output_path,
+                             os.O_WRONLY | os.O_CREAT, 0o640)
 
-                i = 0
-                while 1:
-                    l = os.read(src_fd, clone_block_size)
-                    s = len(l)
-                    if s == 0:
+            i = 0
+            while 1:
+                l = os.read(src_fd, clone_block_size)
+                s = len(l)
+                if s == 0:
+                    meter.end()
+                    break
+                # check sequence of zeros
+                if sparse and zeros == l:
+                    os.lseek(dst_fd, s, 1)
+                else:
+                    b = os.write(dst_fd, l)
+                    if s != b:  # pragma: no cover
                         meter.end()
                         break
-                    # check sequence of zeros
-                    if sparse and zeros == l:
-                        os.lseek(dst_fd, s, 1)
-                    else:
-                        b = os.write(dst_fd, l)
-                        if s != b:  # pragma: no cover
-                            meter.end()
-                            break
-                    i += s
-                    if i < size_bytes:
-                        meter.update(i)
-            except OSError as e:  # pragma: no cover
-                log.debug("Error while cloning", exc_info=True)
-                msg = (_("Error cloning diskimage "
-                         "%(inputpath)s to %(outputpath)s: %(error)s") %
-                         {"inputpath": self._input_path,
-                          "outputpath": self._output_path,
-                          "error": str(e)})
-                raise RuntimeError(msg) from None
+                i += s
+                if i < size_bytes:
+                    meter.update(i)
+        except OSError as e:  # pragma: no cover
+            log.debug("Error while cloning", exc_info=True)
+            msg = (_("Error cloning diskimage "
+                     "%(inputpath)s to %(outputpath)s: %(error)s") %
+                     {"inputpath": self._input_path,
+                      "outputpath": self._output_path,
+                      "error": str(e)})
+            raise RuntimeError(msg) from None
         finally:
             if src_fd is not None:
                 os.close(src_fd)
@@ -718,9 +715,7 @@ class StorageBackend(_StorageBase):
     ##############
 
     def get_path(self):
-        if self._vol_object:
-            return self.get_vol_xml().target_path
-        return self._path
+        return self.get_vol_xml().target_path if self._vol_object else self._path
 
     def get_vol_object(self):
         return self._vol_object
@@ -753,9 +748,11 @@ class StorageBackend(_StorageBase):
                 self._exists = True
             elif self._path is None:
                 self._exists = True
-            elif (not self.get_dev_type() == "network" and
-                  not self._conn.is_remote() and
-                  os.path.exists(self._path)):
+            elif (
+                self.get_dev_type() != "network"
+                and not self._conn.is_remote()
+                and os.path.exists(self._path)
+            ):
                 self._exists = True
             elif self._parent_pool:
                 self._exists = False
@@ -777,9 +774,7 @@ class StorageBackend(_StorageBase):
         Return disk 'type' value per storage settings
         """
         if self._dev_type is None:
-            vol_xml = None
-            if self._vol_object:
-                vol_xml = self.get_vol_xml()
+            vol_xml = self.get_vol_xml() if self._vol_object else None
             self._dev_type = _get_dev_type(self._path, vol_xml, self._vol_object,
                                            self.get_parent_pool_xml(),
                                            self._conn.is_remote())

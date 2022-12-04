@@ -91,9 +91,7 @@ class _VMStatsList(vmmGObject):
         self._stats.insert(0, newstats)
 
     def get_record(self, record_name):
-        if not self._stats:
-            return 0
-        return getattr(self._stats[0], record_name)
+        return getattr(self._stats[0], record_name) if self._stats else 0
 
     def get_vector(self, record_name, limit, ceil=100.0):
         vector = []
@@ -196,8 +194,7 @@ class vmmStatsManager(vmmGObject):
     def _old_net_stats_helper(self, vm, dev):
         statslist = self.get_vm_statslist(vm)
         try:
-            io = vm.get_backend().interfaceStats(dev)
-            if io:
+            if io := vm.get_backend().interfaceStats(dev):
                 rx = io[0]
                 tx = io[4]
                 return rx, tx
@@ -256,8 +253,7 @@ class vmmStatsManager(vmmGObject):
     def _old_disk_stats_helper(self, vm, dev):
         statslist = self.get_vm_statslist(vm)
         try:
-            io = vm.get_backend().blockStats(dev)
-            if io:
+            if io := vm.get_backend().blockStats(dev):
                 rd = io[1]
                 wr = io[3]
                 return rd, wr
@@ -298,8 +294,7 @@ class vmmStatsManager(vmmGObject):
         # LXC has a special blockStats method
         if vm.conn.is_lxc() and self._disk_stats_lxc_supported:
             try:
-                io = vm.get_backend().blockStats('')
-                if io:
+                if io := vm.get_backend().blockStats(''):
                     rd = io[1]
                     wr = io[3]
                     return rd, wr
@@ -332,8 +327,9 @@ class vmmStatsManager(vmmGObject):
             return
 
         # Only works for virtio balloon
-        if not any([b for b in vm.get_xmlobj().devices.memballoon if
-                    b.model == "virtio"]):
+        if not any(
+            b for b in vm.get_xmlobj().devices.memballoon if b.model == "virtio"
+        ):
             return  # pragma: no cover
 
         try:

@@ -102,7 +102,7 @@ class Guest(XMLBuilder):
                 # Testing hack
                 return "00000000-1111-2222-3333-444444444444"
 
-            u = [random.randint(0, 255) for ignore in range(0, 16)]
+            u = [random.randint(0, 255) for ignore in range(16)]
             u[6] = (u[6] & 0x0F) | (4 << 4)
             u[8] = (u[8] & 0x3F) | (2 << 6)
 
@@ -121,9 +121,7 @@ class Guest(XMLBuilder):
     @staticmethod
     def generate_name(guest):
         def _pretty_arch(_a):
-            if _a == "armv7l":
-                return "arm"
-            return _a
+            return "arm" if _a == "armv7l" else _a
 
         force_num = False
         basename = guest.osinfo.name
@@ -132,18 +130,15 @@ class Guest(XMLBuilder):
 
         if guest.osinfo.name == "generic":
             force_num = True
-            if guest.os.is_container():
-                basename = "container"
-            else:
-                basename = "vm"
-
+            basename = "container" if guest.os.is_container() else "vm"
         if guest.os.arch != guest.conn.caps.host.cpu.arch:
-            basename += "-%s" % _pretty_arch(guest.os.arch)
+            basename += f"-{_pretty_arch(guest.os.arch)}"
             force_num = False
 
         def cb(n):
             return generatename.check_libvirt_collision(
                 guest.conn.lookupByName, n)
+
         return generatename.generate_name(basename, cb,
             start_num=force_num and 1 or 2, force_num=force_num,
             sep=not force_num and "-" or "")
@@ -167,13 +162,17 @@ class Guest(XMLBuilder):
                 if "vexpress-a15" in capsinfo.machines:  # pragma: no cover
                     return "vexpress-a15"
 
-            if capsinfo.arch in ["s390x"]:
-                if "s390-ccw-virtio" in capsinfo.machines:
-                    return "s390-ccw-virtio"
+            if (
+                capsinfo.arch in ["s390x"]
+                and "s390-ccw-virtio" in capsinfo.machines
+            ):
+                return "s390-ccw-virtio"
 
-            if capsinfo.arch in ["riscv64", "riscv32"]:
-                if "virt" in capsinfo.machines:
-                    return "virt"
+            if (
+                capsinfo.arch in ["riscv64", "riscv32"]
+                and "virt" in capsinfo.machines
+            ):
+                return "virt"
 
         if capsinfo.conn.is_qemu() or capsinfo.conn.is_test():
             return _qemu_machine()
@@ -313,8 +312,7 @@ class Guest(XMLBuilder):
         if self.__osinfo:
             return self.__osinfo
 
-        os_id = self._metadata.libosinfo.os_id
-        if os_id:
+        if os_id := self._metadata.libosinfo.os_id:
             self.__osinfo = OSDB.lookup_os_by_full_id(os_id)
             if not self.__osinfo:
                 log.debug("XML had libosinfo os id=%s but we didn't "
@@ -355,13 +353,7 @@ class Guest(XMLBuilder):
             self.os.is_pseries()):
             return True
 
-        if not os_support:
-            return False
-
-        if self.os.is_x86():
-            return True
-
-        return False  # pragma: no cover
+        return bool(self.os.is_x86()) if os_support else False
 
     def supports_virtionet(self):
         return self._supports_virtio(self.osinfo.supports_virtionet(self._extra_drivers))
@@ -418,11 +410,11 @@ class Guest(XMLBuilder):
         return ret
 
     def _get_device_boot_order(self):
-        order = []
-        for dev in self.get_bootable_devices():
-            if not dev.boot.order:
-                continue
-            order.append((dev.get_xml_id(), dev.boot.order))
+        order = [
+            (dev.get_xml_id(), dev.boot.order)
+            for dev in self.get_bootable_devices()
+            if dev.boot.order
+        ]
 
         if not order:
             # No devices individually marked bootable, convert traditional
@@ -433,9 +425,7 @@ class Guest(XMLBuilder):
         return [p[0] for p in order]
 
     def get_boot_order(self, legacy=False):
-        if legacy:
-            return self._get_old_boot_order()
-        return self._get_device_boot_order()
+        return self._get_old_boot_order() if legacy else self._get_device_boot_order()
 
     def _set_device_boot_order(self, boot_order):
         """Sets the new device boot order for the domain"""
@@ -446,8 +436,8 @@ class Guest(XMLBuilder):
         for dev in self.devices.get_all():
             dev.boot.order = None
 
-        dev_map = dict((dev.get_xml_id(), dev) for dev in
-                       self.get_bootable_devices())
+        dev_map = {dev.get_xml_id(): dev for dev in self.get_bootable_devices()}
+
         for boot_idx, dev_xml_id in enumerate(boot_order, 1):
             dev_map[dev_xml_id].boot.order = boot_idx
 
@@ -509,10 +499,14 @@ class Guest(XMLBuilder):
         the passed @origdev.
         """
         devlist = getattr(self.devices, origdev.DEVICE_TYPE)
-        for idx, dev in enumerate(devlist):
-            if origdev.compare_device(dev, idx):
-                return dev
-        return None
+        return next(
+            (
+                dev
+                for idx, dev in enumerate(devlist)
+                if origdev.compare_device(dev, idx)
+            ),
+            None,
+        )
 
     def get_bootable_devices(self, exclude_redirdev=False):
         """
@@ -608,34 +602,29 @@ class Guest(XMLBuilder):
         return False
 
     def is_full_os_container(self):
-        if not self.os.is_container():
-            return False
-        for fs in self.devices.filesystem:
-            if fs.target == "/":
-                return True
-        return False
+        return (
+            any(fs.target == "/" for fs in self.devices.filesystem)
+            if self.os.is_container()
+            else False
+        )
 
     def can_default_virtioscsi(self):
         """
         Return True if the guest supports virtio-scsi, and there's
         no other scsi controllers attached to the guest
         """
-        has_any_scsi = any([d.type == "scsi" for d in self.devices.controller])
+        has_any_scsi = any(d.type == "scsi" for d in self.devices.controller)
         return not has_any_scsi and self.supports_virtioscsi()
 
     def hyperv_supported(self):
-        if not self.osinfo.is_windows():
-            return False
-        return True
+        return bool(self.osinfo.is_windows())
 
     def lookup_domcaps(self):
         def _compare_machine(domcaps):
             capsinfo = self.lookup_capsinfo()
             if self.os.machine == domcaps.machine:
                 return True
-            if capsinfo.is_machine_alias(self.os.machine, domcaps.machine):
-                return True
-            return False
+            return bool(capsinfo.is_machine_alias(self.os.machine, domcaps.machine))
 
         # We need to regenerate domcaps cache if any of these values change
         def _compare(domcaps):
@@ -649,9 +638,7 @@ class Guest(XMLBuilder):
                 return False
             if self.os.arch and self.os.arch != domcaps.arch:
                 return False  # pragma: no cover
-            if self.emulator and self.emulator != domcaps.path:
-                return False
-            return True
+            return not self.emulator or self.emulator == domcaps.path
 
         if not self._domcaps or not _compare(self._domcaps):
             self._domcaps = DomainCapabilities.build_from_guest(self)
@@ -666,9 +653,7 @@ class Guest(XMLBuilder):
                 return False
             if self.os.arch and self.os.arch != capsinfo.arch:
                 return False
-            if self.os.machine and self.os.machine not in capsinfo.machines:
-                return False
-            return True
+            return not self.os.machine or self.os.machine in capsinfo.machines
 
         if not self._capsinfo or not _compare(self._capsinfo):
             self._capsinfo = self.conn.caps.guest_lookup(
@@ -733,7 +718,7 @@ class Guest(XMLBuilder):
                 prefix = "pc-q35-"
             else:
                 # Example: pseries-X, virt-X, s390-ccw-virtio-X
-                prefix = machine_alias + "-"
+                prefix = f"{machine_alias}-"
 
             if original_machine_type.startswith(prefix):
                 self.os.machine = machine_alias
@@ -852,12 +837,11 @@ class Guest(XMLBuilder):
                 _("Don't know how to setup UEFI for arch '%s'") %
                 self.os.arch)
 
-        path = domcaps.find_uefi_path_for_arch()
-        if not path:  # pragma: no cover
+        if path := domcaps.find_uefi_path_for_arch():
+            return path
+        else:
             raise RuntimeError(_("Did not find any UEFI binary path for "
                 "arch '%s'") % self.os.arch)
-
-        return path
 
     def _set_default_uefi(self):
         use_default_uefi = (self.prefers_uefi() and
@@ -882,9 +866,7 @@ class Guest(XMLBuilder):
     def _usb_disabled(self):
         controllers = [c for c in self.devices.controller if
             c.type == "usb"]
-        if not controllers:
-            return False
-        return all([c.model == "none" for c in controllers])
+        return all(c.model == "none" for c in controllers) if controllers else False
 
     def _add_default_input_device(self):
         if self.os.is_container():
@@ -936,10 +918,10 @@ class Guest(XMLBuilder):
 
         dev = DeviceConsole(self.conn)
         if self.conn.is_bhyve():
-            nmdm_dev_prefix = '/dev/nmdm{}'.format(self.generate_uuid(self.conn))
+            nmdm_dev_prefix = f'/dev/nmdm{self.generate_uuid(self.conn)}'
             dev.type = dev.TYPE_NMDM
-            dev.source.master = nmdm_dev_prefix + 'A'
-            dev.source.slave = nmdm_dev_prefix + 'B'
+            dev.source.master = f'{nmdm_dev_prefix}A'
+            dev.source.slave = f'{nmdm_dev_prefix}B'
         else:
             dev.type = dev.TYPE_PTY
 
@@ -957,7 +939,7 @@ class Guest(XMLBuilder):
         self.add_device(DeviceVideo(self.conn))
 
     def _add_default_usb_controller(self):
-        if any([d.type == "usb" for d in self.devices.controller]):
+        if any(d.type == "usb" for d in self.devices.controller):
             return
         if not self.conn.is_qemu() and not self.conn.is_test():
             return
@@ -1085,7 +1067,7 @@ class Guest(XMLBuilder):
     def _add_virtioscsi_controller(self):
         if not self.can_default_virtioscsi():
             return
-        if not any([d for d in self.devices.disk if d.bus == "scsi"]):
+        if not any(d for d in self.devices.disk if d.bus == "scsi"):
             return
 
         ctrl = DeviceController(self.conn)
@@ -1097,21 +1079,17 @@ class Guest(XMLBuilder):
     def defaults_to_pcie(self):
         if self.os.is_q35():
             return True
-        if self.os.is_arm_machvirt():
-            return True
-        if self.os.is_riscv_virt():
-            return True
-        return False
+        return True if self.os.is_arm_machvirt() else bool(self.os.is_riscv_virt())
 
     def _add_q35_pcie_controllers(self):
-        if any([c for c in self.devices.controller if c.type == "pci"]):
+        if any(c for c in self.devices.controller if c.type == "pci"):
             return
         if not self.defaults_to_pcie():
             return
 
         added = False
         log.debug("Using num_pcie_root_ports=%s", self.num_pcie_root_ports)
-        for dummy in range(max(self.num_pcie_root_ports, 0)):
+        for _ in range(max(self.num_pcie_root_ports, 0)):
             if not added:
                 # Libvirt forces pcie-root to come first
                 ctrl = DeviceController(self.conn)
@@ -1167,7 +1145,7 @@ class Guest(XMLBuilder):
         # If we use 4 devices here, we fill up all the emulated USB2 slots,
         # and directly assigned devices are forced to fall back to USB1
         # https://bugzilla.redhat.com/show_bug.cgi?id=1135488
-        for ignore in range(2):
+        for _ in range(2):
             dev = DeviceRedirdev(self.conn)
             dev.bus = "usb"
             dev.type = "spicevmc"

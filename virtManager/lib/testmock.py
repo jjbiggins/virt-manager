@@ -20,46 +20,59 @@ def fake_job_info():
 def fake_interface_addresses(iface, source):
     import libvirt
     mac = iface.macaddr
-    if source == libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT:
-        ret = {
-            'enp1s0': {'hwaddr': mac, 'addrs': [
-                {'addr': '10.0.0.1', 'prefix': 24, 'type': 0},
-                {'addr': 'fd00:beef::1', 'prefix': 128, 'type': 1},
-                {'addr': 'fe80::1', 'prefix': 64, 'type': 1}],
+    return (
+        {
+            'enp1s0': {
+                'hwaddr': mac,
+                'addrs': [
+                    {'addr': '10.0.0.1', 'prefix': 24, 'type': 0},
+                    {'addr': 'fd00:beef::1', 'prefix': 128, 'type': 1},
+                    {'addr': 'fe80::1', 'prefix': 64, 'type': 1},
+                ],
             },
-            'lo': {'hwaddr': '00:00:00:00:00:00', 'addrs': [
-                {'addr': '127.0.0.1', 'prefix': 8, 'type': 0},
-                {'addr': '::1', 'prefix': 128, 'type': 1}],
+            'lo': {
+                'hwaddr': '00:00:00:00:00:00',
+                'addrs': [
+                    {'addr': '127.0.0.1', 'prefix': 8, 'type': 0},
+                    {'addr': '::1', 'prefix': 128, 'type': 1},
+                ],
             },
         }
-    else:
-        ret = {'vnet0': {'hwaddr': mac, 'addrs': [
-            {'addr': '10.0.0.3', 'prefix': 0, 'type': 0}],
-        }}
-    return ret
+        if source == libvirt.VIR_DOMAIN_INTERFACE_ADDRESSES_SRC_AGENT
+        else {
+            'vnet0': {
+                'hwaddr': mac,
+                'addrs': [{'addr': '10.0.0.3', 'prefix': 0, 'type': 0}],
+            }
+        }
+    )
 
 
 def fake_dhcp_leases():
-    ret = [{
-        'clientid': 'XXX',
-        'expirytime': 1598570993,
-        'hostname': None,
-        'iaid': '1448103320',
-        'iface': 'virbr1',
-        'ipaddr': 'fd00:beef::2',
-        'mac': 'BAD',
-        'prefix': 64,
-        'type': 1}, {
-        'clientid': 'YYY',
-        'expirytime': 1598570993,
-        'hostname': None,
-        'iaid': None,
-        'iface': 'virbr1',
-        'ipaddr': '10.0.0.2',
-        'mac': 'NOPE',
-        'prefix': 24,
-        'type': 0}]
-    return ret
+    return [
+        {
+            'clientid': 'XXX',
+            'expirytime': 1598570993,
+            'hostname': None,
+            'iaid': '1448103320',
+            'iface': 'virbr1',
+            'ipaddr': 'fd00:beef::2',
+            'mac': 'BAD',
+            'prefix': 64,
+            'type': 1,
+        },
+        {
+            'clientid': 'YYY',
+            'expirytime': 1598570993,
+            'hostname': None,
+            'iaid': None,
+            'iface': 'virbr1',
+            'ipaddr': '10.0.0.2',
+            'mac': 'NOPE',
+            'prefix': 24,
+            'type': 0,
+        },
+    ]
 
 
 def schedule_fake_agent_event(conn, cb):
@@ -103,7 +116,7 @@ def fake_openauth(conn, cb, data):
         [libvirt.VIR_CRED_PASSPHRASE, "Password", None, None, None],
     ]
     cb(creds, data)
-    assert all([bool(cred[4]) for cred in creds])
+    assert all(bool(cred[4]) for cred in creds)
 
 
 class fakeVirtBootstrap:
@@ -207,7 +220,7 @@ class CLITestOptionsClass:
 
         def _get_value(optname):
             for opt in optset:
-                if opt.startswith(optname + "="):
+                if opt.startswith(f"{optname}="):
                     optset.remove(opt)
                     return opt.split("=", 1)[1]
 
@@ -237,7 +250,7 @@ class CLITestOptionsClass:
         self.fake_virtbootstrap = _get("fake-virtbootstrap")
 
         if optset:  # pragma: no cover
-            raise RuntimeError("Unknown --test-options keys: %s" % optset)
+            raise RuntimeError(f"Unknown --test-options keys: {optset}")
 
         return first_run
 

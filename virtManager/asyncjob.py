@@ -86,7 +86,7 @@ def _simple_async_done_cb(error, details,
         if errorcb:
             errorcb(error, details)
         else:
-            error = errorintro + ": " + error
+            error = f"{errorintro}: {error}"
             parent.err.show_err(error,
                                 details=details)
 
@@ -242,7 +242,7 @@ class vmmAsyncJob(vmmGObjectUI):
 
     def show_warning(self, summary):
         # This should only be called from cancel callbacks, not a the thread
-        markup = "<small>%s</small>" % summary
+        markup = f"<small>{summary}</small>"
         self.widget("warning-box").show()
         self.widget("warning-text").set_markup(markup)
 

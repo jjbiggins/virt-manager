@@ -33,7 +33,7 @@ class vmmVMWindow(vmmGObjectUI):
     def get_instance(cls, parentobj, vm):
         try:
             # Maintain one dialog per VM
-            key = "%s+%s" % (vm.conn.get_uri(), vm.get_uuid())
+            key = f"{vm.conn.get_uri()}+{vm.get_uuid()}"
             if cls._instances is None:
                 cls._instances = {}
             if key not in cls._instances:
@@ -323,16 +323,24 @@ class vmmVMWindow(vmmGObjectUI):
         if not src.get_active():
             return
 
-        is_details = (src == self.widget("control-vm-details") or
-                      src == self.widget("details-menu-view-details"))
-        is_snapshot = (src == self.widget("control-snapshots") or
-                       src == self.widget("details-menu-view-snapshots"))
+        is_details = src in [
+            self.widget("control-vm-details"),
+            self.widget("details-menu-view-details"),
+        ]
+
+        is_snapshot = src in [
+            self.widget("control-snapshots"),
+            self.widget("details-menu-view-snapshots"),
+        ]
+
 
         pages = self.widget("details-pages")
-        if pages.get_current_page() == DETAILS_PAGE_DETAILS:
-            if self._details.vmwindow_has_unapplied_changes():
-                self._sync_toolbar_page_buttons(pages.get_current_page())
-                return
+        if (
+            pages.get_current_page() == DETAILS_PAGE_DETAILS
+            and self._details.vmwindow_has_unapplied_changes()
+        ):
+            self._sync_toolbar_page_buttons(pages.get_current_page())
+            return
 
         if is_details:
             pages.set_current_page(DETAILS_PAGE_DETAILS)
@@ -375,10 +383,7 @@ class vmmVMWindow(vmmGObjectUI):
         self._sync_console_page_menu_state()
 
     def change_run_text(self, can_restore):
-        if can_restore:
-            text = _("_Restore")
-        else:
-            text = _("_Run")
+        text = _("_Restore") if can_restore else _("_Run")
         strip_text = text.replace("_", "")
 
         self.widget("details-vm-menu").get_submenu().change_run_text(text)
@@ -390,9 +395,8 @@ class vmmVMWindow(vmmGObjectUI):
             "connection-name": self.vm.conn.get_pretty_desc(),
         })
 
-        grabmsg = self._console.vmwindow_get_title_message()
-        if grabmsg:
-            title = grabmsg + " " + title
+        if grabmsg := self._console.vmwindow_get_title_message():
+            title = f"{grabmsg} {title}"
 
         self.topwin.set_title(title)
 
@@ -549,7 +553,7 @@ class vmmVMWindow(vmmGObjectUI):
 
         import datetime
         now = str(datetime.datetime.now()).split(".")[0].replace(" ", "_")
-        default = "Screenshot_%s_%s.png" % (self.vm.get_name(), now)
+        default = f"Screenshot_{self.vm.get_name()}_{now}.png"
 
         path = self.err.browse_local(
             self.vm.conn, _("Save Virtual Machine Screenshot"),

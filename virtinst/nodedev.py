@@ -13,10 +13,7 @@ from .xmlbuilder import XMLBuilder, XMLProperty, XMLChildProperty
 def _compare_int(nodedev_val, hostdev_val):
     def _intify(val):
         try:
-            if "0x" in str(val):
-                return int(val or '0x00', 16)
-            else:
-                return int(val)
+            return int(val or '0x00', 16) if "0x" in str(val) else int(val)
         except Exception:
             return -1
 
@@ -81,10 +78,7 @@ class NodeDevice(XMLBuilder):
         # libvirt 7.3.0 added a <uuid> element to the nodedev xml for mdev
         # types. For older versions, we unfortunately have to parse the nodedev
         # name, which uses the format "mdev_$UUID_WITH_UNDERSCORES"
-        if self.uuid is not None:
-            return self.uuid
-
-        return self.name[5:].replace('_', '-')
+        return self.uuid if self.uuid is not None else self.name[5:].replace('_', '-')
 
     def compare_to_hostdev(self, hostdev):
         if self.device_type == "pci":

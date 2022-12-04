@@ -106,13 +106,12 @@ class vmmEngine(vmmGObject):
         self._tick_thread.start()
         self._tick()
 
-        uris = list(self._connobjs.keys())
-        if not uris:
-            log.debug("No stored URIs found.")
-        else:
+        if uris := list(self._connobjs.keys()):
             log.debug("Loading stored URIs:\n%s",
                 "  \n".join(sorted(uris)))
 
+        else:
+            log.debug("No stored URIs found.")
         if not skip_autostart:
             self.idle_add(self._autostart_conns)
 

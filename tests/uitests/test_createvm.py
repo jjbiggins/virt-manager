@@ -69,8 +69,8 @@ def testNewVMMultiConnection(app):
 
     # Check the xen PV only startup warning
     def _capsopt(fname):
-        capsdir = tests.utils.DATADIR + "/capabilities/"
-        return ",caps=" + capsdir + fname
+        capsdir = f"{tests.utils.DATADIR}/capabilities/"
+        return f",caps={capsdir}{fname}"
 
     def _add_conn(uri):
         return app.manager_createconn(uri)
@@ -357,7 +357,7 @@ def testNewVMCDROMDetect(app):
     """
     CDROM with detection
     """
-    cdrom = tests.utils.DATADIR + "/fakemedia/fake-win7.iso"
+    cdrom = f"{tests.utils.DATADIR}/fakemedia/fake-win7.iso"
     newvm = _open_newvm(app)
     newvm.find_fuzzy("Local install media", "radio").click()
     _forward(newvm)
@@ -1049,7 +1049,7 @@ def testNewVMCustomizeXMLEdit(app):
     tab = win.find("disk-tab")
     win.find("XML", "page tab").click()
     # Change the disk path via the XML editor
-    fname = vmname + ".qcow2"
+    fname = f"{vmname}.qcow2"
     lib.utils.check(lambda: fname in xmleditor.text)
     newx = xmleditor.text.replace(fname, "default-vol")
     xmleditor.set_text(newx)
@@ -1116,7 +1116,7 @@ def testNewVMCustomizeXMLEdit(app):
     # special handling in domain.py
     tab.find("Browse", "push button").click()
     browser = app.root.find("vmm-storage-browser")
-    browser.find("%s.qcow2" % vmname, "table cell")
+    browser.find(f"{vmname}.qcow2", "table cell")
 
 
 def testNewVMRemote(app):

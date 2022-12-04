@@ -62,7 +62,7 @@ class vmmOSList(vmmGObjectUI):
         all_os = list(sorted(all_os, key=_always_show))
 
         for os in all_os:
-            os_list_model.append([os, "%s (%s)" % (os.label, os.name)])
+            os_list_model.append([os, f"{os.label} ({os.name})"])
 
         model_filter = Gtk.TreeModelFilter(child_model=os_list_model)
         model_filter.set_visible_func(self._filter_os_cb)
@@ -159,10 +159,7 @@ class vmmOSList(vmmGObjectUI):
         Called text in search_entry is changed
         """
         searchname = src.get_text().strip()
-        selected_label = None
-        if self._selected_os:
-            selected_label = self._selected_os.label
-
+        selected_label = self._selected_os.label if self._selected_os else None
         if (not src.get_sensitive() or
             not searchname or
             selected_label == searchname):
@@ -187,9 +184,8 @@ class vmmOSList(vmmGObjectUI):
 
     def _filter_os_cb(self, model, titer, ignore1):
         osobj = model.get(titer, 0)[0]
-        if self._filter_eol:
-            if osobj.eol:
-                return False
+        if self._filter_eol and osobj.eol:
+            return False
 
         if _always_show(osobj):
             return True

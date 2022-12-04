@@ -10,7 +10,7 @@ import os
 
 class DevError(RuntimeError):
     def __init__(self, msg):
-        RuntimeError.__init__(self, "programming error: %s" % msg)
+        RuntimeError.__init__(self, f"programming error: {msg}")
 
 
 def listify(l):
@@ -92,7 +92,7 @@ def unindent_device_xml(xml):
         unindent += 1
 
     for line in lines:
-        if re.match(r"^%s *<.*$" % (unindent * " "), line):
+        if re.match(f'^{unindent * " "} *<.*$', line):
             line = line[unindent:]
         ret += line + "\n"
     return ret

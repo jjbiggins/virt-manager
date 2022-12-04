@@ -284,7 +284,7 @@ class vmmManager(vmmGObjectUI):
             item = Gtk.MenuItem.new_with_mnemonic(text)
             if cb:
                 item.connect("activate", cb)
-            item.get_accessible().set_name("conn-%s" % idx)
+            item.get_accessible().set_name(f"conn-{idx}")
             self.connmenu.add(item)
             self.connmenu_items[idx] = item
 
@@ -400,19 +400,14 @@ class vmmManager(vmmGObjectUI):
 
     def current_vm(self):
         row = self.current_row()
-        if not row or row[ROW_IS_CONN]:
-            return None
-
-        return row[ROW_HANDLE]
+        return None if not row or row[ROW_IS_CONN] else row[ROW_HANDLE]
 
     def current_conn(self):
         row = self.current_row()
         if not row:
             return None
         handle = row[ROW_HANDLE]
-        if row[ROW_IS_CONN]:
-            return handle
-        return handle.conn
+        return handle if row[ROW_IS_CONN] else handle.conn
 
     def get_row(self, conn_or_vm):
         def _walk(model, rowiter, obj):
@@ -426,9 +421,11 @@ class vmmManager(vmmGObjectUI):
                         return ret
                 rowiter = model.iter_next(rowiter)
 
-        if not len(self.model):
-            return None
-        return _walk(self.model, self.model.get_iter_first(), conn_or_vm)
+        return (
+            _walk(self.model, self.model.get_iter_first(), conn_or_vm)
+            if len(self.model)
+            else None
+        )
 
 
     ####################
@@ -491,12 +488,13 @@ class vmmManager(vmmGObjectUI):
             vmmenu.VMActionUI.delete(self, vm)
 
     def _do_delete_conn(self, conn):
-        result = self.err.yes_no(_("This will remove the connection:\n\n%s\n\n"
-                                   "Are you sure?") % conn.get_uri())
-        if not result:
+        if result := self.err.yes_no(
+            _("This will remove the connection:\n\n%s\n\n" "Are you sure?")
+            % conn.get_uri()
+        ):
+            vmmConnectionManager.get_instance().remove_conn(conn.get_uri())
+        else:
             return
-
-        vmmConnectionManager.get_instance().remove_conn(conn.get_uri())
 
     def set_pause_state(self, state):
         src = self.widget("vm-pause")
@@ -579,14 +577,10 @@ class vmmManager(vmmGObjectUI):
         elif conn.is_connecting():
             text = _("%(connection)s - Connecting...") % {"connection": name}
 
-        markup = "<span size='smaller'>%s</span>" % text
-        return markup
+        return "<span size='smaller'>%s</span>" % text
 
     def _build_conn_color(self, conn):
-        color = None
-        if conn.is_disconnected():
-            color = self.config.color_insensitive
-        return color
+        return self.config.color_insensitive if conn.is_disconnected() else None
 
     def _build_vm_markup(self, name, status):
         domtext     = ("<span size='smaller' weight='bold'>%s</span>" %
@@ -655,11 +649,15 @@ class vmmManager(vmmGObjectUI):
             child = self.model.iter_children(row.iter)
 
     def _conn_removed(self, _src, uri):
-        conn_row = None
-        for row in self.model:
-            if row[ROW_IS_CONN] and row[ROW_HANDLE].get_uri() == uri:
-                conn_row = row
-                break
+        conn_row = next(
+            (
+                row
+                for row in self.model
+                if row[ROW_IS_CONN] and row[ROW_HANDLE].get_uri() == uri
+            ),
+            None,
+        )
+
         if conn_row is None:  # pragma: no cover
             return
 
@@ -752,10 +750,7 @@ class vmmManager(vmmGObjectUI):
         self.model.row_changed(row.path, row.iter)
 
     def change_run_text(self, can_restore):
-        if can_restore:
-            text = _("_Restore")
-        else:
-            text = _("_Run")
+        text = _("_Restore") if can_restore else _("_Run")
         strip_text = text.replace("_", "")
 
         self.vmmenu.change_run_text(text)
@@ -920,9 +915,17 @@ class vmmManager(vmmGObjectUI):
         col.set_visible(do_show)
         self.widget(menu).set_active(do_show)
 
-        any_visible = any([c.get_visible() for c in
-            [self.netcol, self.diskcol, self.memcol,
-             self.guestcpucol, self.hostcpucol]])
+        any_visible = any(
+            c.get_visible()
+            for c in [
+                self.netcol,
+                self.diskcol,
+                self.memcol,
+                self.guestcpucol,
+                self.hostcpucol,
+            ]
+        )
+
         self.spacer_txt.set_property("visible", not any_visible)
 
     def toggle_network_traffic_visible_widget(self):

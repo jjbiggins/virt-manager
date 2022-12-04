@@ -148,9 +148,11 @@ class vmmCreateVolume(vmmGObjectUI):
     ###################
 
     def _get_config_format(self):
-        if not self.widget("vol-format").get_visible():
-            return None
-        return uiutil.get_list_selection(self.widget("vol-format"))
+        return (
+            uiutil.get_list_selection(self.widget("vol-format"))
+            if self.widget("vol-format").get_visible()
+            else None
+        )
 
     def _default_vol_name(self):
         hint = self._name_hint or "vol"
@@ -189,9 +191,7 @@ class vmmCreateVolume(vmmGObjectUI):
     def _can_backing(self):
         if self._parent_pool.get_type() == "logical":
             return True
-        if self._get_config_format() == "qcow2":
-            return True
-        return False
+        return self._get_config_format() == "qcow2"
 
     def _show_backing(self):
         uiutil.set_grid_row_visible(
@@ -239,10 +239,7 @@ class vmmCreateVolume(vmmGObjectUI):
         nonsparse = self.widget("vol-nonsparse").get_active()
         backing = self.widget("backing-store").get_text()
 
-        alloc = 0
-        if nonsparse:
-            alloc = cap
-
+        alloc = cap if nonsparse else 0
         vol = self._make_stub_vol()
         vol.name = volname
         vol.capacity = (cap * 1024 * 1024 * 1024)

@@ -54,9 +54,7 @@ class ConnectionInfo(object):
         return not (self.gsocket or self.gport or self.gtlsport)
 
     def need_tunnel(self):
-        if not self._is_listen_localhost():
-            return False
-        return self.transport == "ssh"
+        return self.transport == "ssh" if self._is_listen_localhost() else False
 
     def bad_config(self):
         if self.transport and self._is_listen_none():
@@ -232,9 +230,9 @@ def _make_ssh_command(ginfo):
     # to the desired behavior.
     #
     if ginfo.gsocket:
-        nc_params = "-U %s" % ginfo.gsocket
+        nc_params = f"-U {ginfo.gsocket}"
     else:
-        nc_params = "%s %s" % (ginfo.gaddr, ginfo.gport)
+        nc_params = f"{ginfo.gaddr} {ginfo.gport}"
 
     nc_cmd = (
         """nc -q 2>&1 | grep "requires an argument" >/dev/null;"""
@@ -246,10 +244,8 @@ def _make_ssh_command(ginfo):
         """eval "$CMD";""" %
         {'nc_params': nc_params})
 
-    argv.append("sh -c")
-    argv.append("'%s'" % nc_cmd)
-
-    argv_str = functools.reduce(lambda x, y: x + " " + y, argv[1:])
+    argv.extend(("sh -c", "'%s'" % nc_cmd))
+    argv_str = functools.reduce(lambda x, y: f"{x} {y}", argv[1:])
     log.debug("Pre-generated ssh command for ginfo: %s", argv_str)
     return argv
 

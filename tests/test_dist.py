@@ -22,13 +22,12 @@ def test_validate_po_files():
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         ignore, stderr = proc.communicate()
         if proc.wait():
-            failures.append("%s: %s" % (pofile, stderr))
+            failures.append(f"{pofile}: {stderr}")
 
     if not failures:
         return
 
-    msg = "The following po files have errors:\n"
-    msg += "\n".join(failures)
+    msg = "The following po files have errors:\n" + "\n".join(failures)
     raise AssertionError(msg)
 
 
@@ -45,9 +44,9 @@ def test_validate_pot_strings():
                 stderr=subprocess.STDOUT)
         warnings = [l for l in out.decode("utf-8").splitlines()
                     if "warning:" in l]
-        warnings = [w for w in warnings
-                    if "a fallback ITS rule file" not in w]
-        if warnings:
+        if warnings := [
+            w for w in warnings if "a fallback ITS rule file" not in w
+        ]:
             raise AssertionError("xgettext has warnings:\n\n%s" %
                     "\n".join(warnings))
     finally:
@@ -64,13 +63,12 @@ def test_ui_minimum_version():
     # to enforce
     minimum_version_major = 3
     minimum_version_minor = 22
-    minimum_version_str = "%s.%s" % (minimum_version_major,
-                                     minimum_version_minor)
+    minimum_version_str = f"{minimum_version_major}.{minimum_version_minor}"
 
     failures = []
     for filename in glob.glob("ui/*.ui"):
         required_version = None
-        for line in open(filename).readlines():
+        for line in open(filename):
             # This is much faster than XML parsing the whole file
             if not line.strip().startswith('<requires '):
                 continue
@@ -106,7 +104,7 @@ def test_ui_translatable_atknames():
     failures = []
     atkstr = "AtkObject::accessible-name"
     for filename in glob.glob("ui/*.ui"):
-        for line in open(filename).readlines():
+        for line in open(filename):
             if atkstr not in line:
                 continue
             if "translatable=" in line:
@@ -115,8 +113,11 @@ def test_ui_translatable_atknames():
 
     if not failures:
         return
-    err = "Some files incorrectly have translatable ATK names.\n"
-    err += "Run this command to fix:\n\n"
+    err = (
+        "Some files incorrectly have translatable ATK names.\n"
+        + "Run this command to fix:\n\n"
+    )
+
     err += ("""sed -i -e 's/%s" translatable="yes"/%s"/g' """ %
             (atkstr, atkstr))
     err += " ".join(failures)

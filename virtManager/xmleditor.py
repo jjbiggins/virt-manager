@@ -175,9 +175,7 @@ class vmmXMLEditor(vmmGObjectUI):
         """
         if not self.is_xml_selected():
             return
-        xml = ""
-        if libvirtobject:
-            xml = libvirtobject.get_xml_to_define()
+        xml = libvirtobject.get_xml_to_define() if libvirtobject else ""
         self.set_xml(xml)
 
     def is_xml_selected(self):
@@ -208,10 +206,9 @@ class vmmXMLEditor(vmmGObjectUI):
                 # a hook to actually serialize the final XML to return
                 self.emit("xml-requested")
                 return
-        else:
-            if not self._xml_unapplied_changes():
-                self._reset_xml()
-                return
+        elif not self._xml_unapplied_changes():
+            self._reset_xml()
+            return
 
         # I can't find anyway to make the notebook stay on the current page
         # So set an idle callback to switch back to the XML page. It causes

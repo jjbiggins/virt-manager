@@ -93,7 +93,7 @@ def _testRename(app, win, origname, newname):
     lib.utils.check(lambda: not appl.sensitive)
 
     # Confirm lists were updated
-    app.find_window("%s on" % newname)
+    app.find_window(f"{newname} on")
     app.root.find_fuzzy(newname, "table cell")
 
     # Make sure the old entry is gone
@@ -805,7 +805,7 @@ def testDetailsConsoleChecksSSH(app):
     various details/* code paths
     """
     fakeuri = "qemu+ssh://foouser@256.256.256.256:1234/system"
-    uri = tests.utils.URIs.test_full + ",fakeuri=%s" % fakeuri
+    uri = f"{tests.utils.URIs.test_full},fakeuri={fakeuri}"
     app.uri = uri
     app.open(xmleditor_enabled=True)
 
@@ -821,13 +821,16 @@ def testDetailsConsoleChecksSSH(app):
         win.click_title()
         run.click()
         lib.utils.check(lambda: not run.sensitive)
+
     def _stop():
         shutdown.click()
         lib.utils.check(lambda: not shutdown.sensitive)
+
     def _checkcon(msg):
         conbtn.click()
         lib.utils.check(lambda: conpages.showing)
         conpages.find(msg)
+
     def _check_textconsole_menu(msg):
         vmenu = win.find("^View$", "menu")
         vmenu.click()
@@ -911,7 +914,7 @@ def testDetailsConsoleChecksTCP(app):
     non-SSH transport but the guest config is only listening locally
     """
     fakeuri = "qemu+tcp://foouser@256.256.256.256:1234/system"
-    uri = tests.utils.URIs.test_full + ",fakeuri=%s" % fakeuri
+    uri = f"{tests.utils.URIs.test_full},fakeuri={fakeuri}"
     app.uri = uri
     app.open(xmleditor_enabled=True)
 
@@ -927,9 +930,11 @@ def testDetailsConsoleChecksTCP(app):
         win.click_title()
         run.click()
         lib.utils.check(lambda: not run.sensitive)
+
     def _stop():
         shutdown.click()
         lib.utils.check(lambda: not shutdown.sensitive)
+
     def _checkcon(msg):
         conbtn.click()
         lib.utils.check(lambda: conpages.showing)

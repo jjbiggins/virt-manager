@@ -134,8 +134,7 @@ class vmmFSDetails(vmmGObjectUI):
         uiutil.set_grid_row_visible(
             self.widget("fs-source-box"), not show_ram_source)
 
-        show_format = bool(
-            fsdriver == DeviceFilesystem.DRIVER_NBD)
+        show_format = fsdriver == DeviceFilesystem.DRIVER_NBD
         uiutil.set_grid_row_visible(
                 self.widget("fs-format-combo"), show_format)
 
@@ -162,7 +161,8 @@ class vmmFSDetails(vmmGObjectUI):
             label = _(
                     "You may need to 'Enable shared memory' on the 'Memory' screen.")
             self.widget("fs-driver-warn").set_markup(
-                    "<small>%s</small>" % xmlutil.xml_escape(label))
+                f"<small>{xmlutil.xml_escape(label)}</small>"
+            )
 
 
     ##############

@@ -78,9 +78,7 @@ class vmmTPMDetails(vmmGObjectUI):
             values = domcaps.devices.tpm.get_enum("model").get_values()
         else:
             values = [DeviceTpm.MODEL_CRB, DeviceTpm.MODEL_TIS]
-        for v in values:
-            rows.append([v, _tpm_pretty_model(v)])
-
+        rows.extend([v, _tpm_pretty_model(v)] for v in values)
         uiutil.build_simple_combo(self.widget("tpm-model"), rows, sort=False)
 
         rows = [

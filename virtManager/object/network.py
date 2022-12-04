@@ -15,19 +15,11 @@ from ..lib import testmock
 
 def _make_addr_str(addrStr, prefix, netmaskStr):
     if prefix:
-        return str(
-            ipaddress.ip_network(
-                str("{}/{}").format(addrStr, prefix), strict=False
-            )
-        )
+        return str(ipaddress.ip_network(f"{addrStr}/{prefix}", strict=False))
     elif netmaskStr:
         netmask = ipaddress.ip_address(str((netmaskStr)))
         network = ipaddress.ip_address(str((addrStr)))
-        return str(
-            ipaddress.ip_network(
-                str("{}/{}").format(network, netmask), strict=False
-            )
-        )
+        return str(ipaddress.ip_network(f"{network}/{netmask}", strict=False))
     else:
         return str(ipaddress.ip_network(str(addrStr), strict=False))
 
@@ -117,13 +109,13 @@ class vmmNetwork(vmmLibvirtObject):
         xmlobj = self.get_xmlobj()
         ip = None
         for i in xmlobj.ips:
-            if (i.family == family or
-                (family == "ipv4" and not i.family)):
-                if i.ranges:
-                    ip = i
-                    dhcpstart = i.ranges[0].start
-                    dhcpend = i.ranges[0].end
-                    break
+            if (
+                (i.family == family or (family == "ipv4" and not i.family))
+            ) and i.ranges:
+                ip = i
+                dhcpstart = i.ranges[0].start
+                dhcpend = i.ranges[0].end
+                break
 
         if not ip:
             for i in xmlobj.ips:
@@ -132,10 +124,7 @@ class vmmNetwork(vmmLibvirtObject):
                     ip = i
                     break
 
-        ret = None
-        if ip:
-            ret = _make_addr_str(ip.address, ip.prefix, ip.netmask)
-
+        ret = _make_addr_str(ip.address, ip.prefix, ip.netmask) if ip else None
         dhcp = [None, None]
         if dhcpstart and dhcpend:
             dhcp = [str(ipaddress.ip_address(str(dhcpstart))),
@@ -155,17 +144,9 @@ class vmmNetwork(vmmLibvirtObject):
             return _("Isolated network")
 
         if mode == "nat":
-            if dev:
-                desc = _("NAT to %s") % dev
-            else:
-                desc = _("NAT")
+            return _("NAT to %s") % dev if dev else _("NAT")
         elif mode == "route":
-            if dev:
-                desc = _("Route to %s") % dev
-            else:
-                desc = _("Routed network")
+            return _("Route to %s") % dev if dev else _("Routed network")
         else:
             modestr = mode.capitalize()
-            desc = _("%s network") % modestr
-
-        return desc
+            return _("%s network") % modestr

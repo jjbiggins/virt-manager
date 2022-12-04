@@ -45,11 +45,11 @@ def _make_fake_data(vm):
         import time
         app = vmmInspectionApplication()
         if "app1" in prefix:
-            app.display_name = prefix + "display_name"
-            app.summary = prefix + "summary-" + str(time.time())
+            app.display_name = f"{prefix}display_name"
+            app.summary = f"{prefix}summary-{str(time.time())}"
         else:
-            app.name = prefix + "name"
-            app.description = prefix + "description-" + str(time.time()) + "\n"
+            app.name = f"{prefix}name"
+            app.description = f"{prefix}description-{str(time.time())}" + "\n"
         app.epoch = 1
         app.version = "2"
         app.release = "3"
@@ -58,7 +58,7 @@ def _make_fake_data(vm):
     return data
 
 
-def _perform_inspection(conn, vm):  # pragma: no cover
+def _perform_inspection(conn, vm):    # pragma: no cover
     """
     Perform the actual guestfs interaction and return results in
     a vmmInspectionData object
@@ -66,7 +66,7 @@ def _perform_inspection(conn, vm):  # pragma: no cover
     import guestfs  # pylint: disable=import-error
 
     g = guestfs.GuestFS(close_on_exit=False, python_return_dict=True)
-    prettyvm = conn.get_uri() + ":" + vm.get_name()
+    prettyvm = f"{conn.get_uri()}:{vm.get_name()}"
     try:
         g.add_libvirt_dom(vm.get_backend(), readonly=1)
         g.launch()
@@ -127,8 +127,8 @@ def _perform_inspection(conn, vm):  # pragma: no cover
         if icon is None or len(icon) == 0:
             # no high quality icon, try a low quality one
             icon = g.inspect_get_icon(root, favicon=0, highquality=0)
-            if icon is None or len(icon) == 0:
-                icon = None
+        if icon is None or len(icon) == 0:
+            icon = None
 
         # Inspection applications.
         try:
@@ -302,7 +302,7 @@ class vmmInspection(vmmGObject):
             vm.set_inspection_data(_data)
             self._cached_data[vm.get_uuid()] = _data
 
-        prettyvm = conn.get_uri() + ":" + vm.get_name()
+        prettyvm = f"{conn.get_uri()}:{vm.get_name()}"
         vmuuid = vm.get_uuid()
         if vmuuid in self._cached_data:
             data = self._cached_data.get(vmuuid)
@@ -326,10 +326,7 @@ class vmmInspection(vmmGObject):
         if conn.is_remote():  # pragma: no cover
             return _inspection_error(
                     _("Cannot inspect VM on remote connection"))
-        if conn.is_test():
-            return _make_fake_data(vm)
-
-        return _perform_inspection(conn, vm)  # pragma: no cover
+        return _make_fake_data(vm) if conn.is_test() else _perform_inspection(conn, vm)
 
 
     ##############

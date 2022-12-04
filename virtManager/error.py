@@ -20,7 +20,7 @@ def _launch_dialog(dialog, primary_text, secondary_text, title,
         if not t:
             return t
         if len(t) > 512:
-            t = t[:512] + "..."
+            t = f"{t[:512]}..."
         retlines = []
         for line in t.splitlines():
             if not line:
@@ -42,7 +42,7 @@ def _launch_dialog(dialog, primary_text, secondary_text, title,
     res = False
     if modal:
         res = dialog.run()
-        res = bool(res in [Gtk.ResponseType.YES, Gtk.ResponseType.OK])
+        res = res in [Gtk.ResponseType.YES, Gtk.ResponseType.OK]
         dialog.destroy()
     else:
         def response_destroy(src, ignore):
@@ -139,7 +139,7 @@ class vmmErrorDialog(vmmGObject):
     def val_err(self, text1, text2=None, title=_("Input Error"), modal=True):
         logtext = _("Validation Error: %s") % text1
         if text2:
-            logtext += " %s" % text2
+            logtext += f" {text2}"
 
         if isinstance(text1, Exception) or isinstance(text2, Exception):
             log.exception(logtext)
@@ -253,10 +253,9 @@ class vmmErrorDialog(vmmGObject):
         overwrite_confirm = False
         dialog_type = dialog_type or Gtk.FileChooserAction.OPEN
 
-        if dialog_type == Gtk.FileChooserAction.SAVE:
-            if choose_button is None:
-                choose_button = Gtk.STOCK_SAVE
-                overwrite_confirm = True
+        if dialog_type == Gtk.FileChooserAction.SAVE and choose_button is None:
+            choose_button = Gtk.STOCK_SAVE
+            overwrite_confirm = True
 
         if choose_button is None:
             choose_button = Gtk.STOCK_OPEN
@@ -284,7 +283,7 @@ class vmmErrorDialog(vmmGObject):
                 name = _type[1]
 
             f = Gtk.FileFilter()
-            f.add_pattern("*." + pattern)
+            f.add_pattern(f"*.{pattern}")
             if name:
                 f.set_name(name)
             fcdialog.set_filter(f)
@@ -294,9 +293,8 @@ class vmmErrorDialog(vmmGObject):
             start_folder = self.config.get_default_directory(
                 conn, browse_reason)
 
-        if start_folder is not None:
-            if os.access(start_folder, os.R_OK):
-                fcdialog.set_current_folder(start_folder)
+        if start_folder is not None and os.access(start_folder, os.R_OK):
+            fcdialog.set_current_folder(start_folder)
 
         # Run the dialog and parse the response
         ret = None

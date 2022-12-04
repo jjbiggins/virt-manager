@@ -32,7 +32,7 @@ class DeviceSmartcard(Device):
     ##################
 
     def default_type(self):
-        return self.mode == "passthrough" and "spicevmc" or "tcp"
+        return "spicevmc" if self.mode == "passthrough" else "tcp"
 
     def set_defaults(self, guest):
         if not self.mode:

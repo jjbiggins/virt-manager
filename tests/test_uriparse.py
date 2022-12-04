@@ -59,7 +59,7 @@ def testURIs():
 
 
 def test_magicuri_connver():
-    uri = tests.utils.URIs.test_default + ",connver=1,libver=2"
+    uri = f"{tests.utils.URIs.test_default},connver=1,libver=2"
     conn = tests.utils.URIs.openconn(uri)
     assert conn.conn_version() == 1
     assert conn.local_libvirt_version() == 2

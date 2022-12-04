@@ -32,10 +32,10 @@ os.environ["HOME"] = "/tmp"
 os.environ["DISPLAY"] = ":3.4"
 
 TMP_IMAGE_DIR = "/tmp/__virtinst_cli_"
-_ABSXMLDIR = utils.DATADIR + "/cli"
+_ABSXMLDIR = f"{utils.DATADIR}/cli"
 XMLDIR = os.path.relpath(_ABSXMLDIR, utils.TOPDIR)
-MEDIA_DIR = os.path.relpath(utils.DATADIR + "/fakemedia", utils.TOPDIR)
-UNATTENDED_DIR = XMLDIR + "/unattended"
+MEDIA_DIR = os.path.relpath(f"{utils.DATADIR}/fakemedia", utils.TOPDIR)
+UNATTENDED_DIR = f"{XMLDIR}/unattended"
 OLD_OSINFO = utils.has_old_osinfo()
 NO_OSINFO_UNATTEND = not unattended.OSInstallScript.have_new_libosinfo()
 HAS_xorriso = shutil.which("xorriso")
@@ -47,18 +47,16 @@ LIBOSINFO_SUPPORT_LOCAL_TREE = hasattr(Libosinfo.Tree, "create_from_treeinfo")
 # Images that will be created by virt-install/virt-clone, and removed before
 # each run
 NEW_FILES = [
-    TMP_IMAGE_DIR + "new1.img",
-    TMP_IMAGE_DIR + "new2.img",
-    TMP_IMAGE_DIR + "new3.img",
-    TMP_IMAGE_DIR + "exist1-clone.img",
-    TMP_IMAGE_DIR + "exist2-clone.img",
+    f"{TMP_IMAGE_DIR}new1.img",
+    f"{TMP_IMAGE_DIR}new2.img",
+    f"{TMP_IMAGE_DIR}new3.img",
+    f"{TMP_IMAGE_DIR}exist1-clone.img",
+    f"{TMP_IMAGE_DIR}exist2-clone.img",
 ]
 
+
 # Images that are expected to exist before a command is run
-EXIST_FILES = [
-    TMP_IMAGE_DIR + "exist1.img",
-    TMP_IMAGE_DIR + "exist2.img",
-]
+EXIST_FILES = [f"{TMP_IMAGE_DIR}exist1.img", f"{TMP_IMAGE_DIR}exist2.img"]
 
 
 TEST_DATA = {
@@ -70,7 +68,6 @@ TEST_DATA = {
     'URI-KVM-PPC64LE': utils.URIs.kvm_ppc64le,
     'URI-KVM-S390X': utils.URIs.kvm_s390x,
     'URI-QEMU-RISCV64': utils.URIs.qemu_riscv64,
-
     'XMLDIR': XMLDIR,
     'NEWIMG1': "/pool-dir/new1.img",
     'NEWIMG2': "/pool-dir/new2.img",
@@ -81,16 +78,16 @@ TEST_DATA = {
     'EXISTIMG2': "/pool-dir/testvol2.img",
     'EXISTIMG3': EXIST_FILES[0],
     'EXISTIMG4': EXIST_FILES[1],
-    'ISOTREE': "%s/fake-fedora17-tree.iso" % MEDIA_DIR,
-    'ISOLABEL': "%s/fake-centos65-label.iso" % MEDIA_DIR,
-    'ISO-NO-OS': "%s/fake-no-osinfo.iso" % MEDIA_DIR,
-    'ISO-WIN7': "%s/fake-win7.iso" % MEDIA_DIR,
-    'ISO-F26-NETINST': "%s/fake-f26-netinst.iso" % MEDIA_DIR,
-    'ISO-F29-LIVE': "%s/fake-f29-live.iso" % MEDIA_DIR,
-    'TREEDIR': "%s/fakefedoratree" % MEDIA_DIR,
+    'ISOTREE': f"{MEDIA_DIR}/fake-fedora17-tree.iso",
+    'ISOLABEL': f"{MEDIA_DIR}/fake-centos65-label.iso",
+    'ISO-NO-OS': f"{MEDIA_DIR}/fake-no-osinfo.iso",
+    'ISO-WIN7': f"{MEDIA_DIR}/fake-win7.iso",
+    'ISO-F26-NETINST': f"{MEDIA_DIR}/fake-f26-netinst.iso",
+    'ISO-F29-LIVE': f"{MEDIA_DIR}/fake-f29-live.iso",
+    'TREEDIR': f"{MEDIA_DIR}/fakefedoratree",
     'COLLIDE': "/pool-dir/collidevol1.img",
-    'ADMIN-PASSWORD-FILE': "%s/admin-password.txt" % UNATTENDED_DIR,
-    'USER-PASSWORD-FILE': "%s/user-password.txt" % UNATTENDED_DIR,
+    'ADMIN-PASSWORD-FILE': f"{UNATTENDED_DIR}/admin-password.txt",
+    'USER-PASSWORD-FILE': f"{UNATTENDED_DIR}/user-password.txt",
 }
 
 
@@ -158,7 +155,7 @@ class SkipChecks:
             skip = bool(msg)
         else:
             skip = not conn.support._check_version(check)  # pylint: disable=protected-access
-            msg = "Skipping check due to version < %s" % check
+            msg = f"Skipping check due to version < {check}"
 
         if skip:
             raise pytest.skip(msg)
@@ -300,7 +297,7 @@ class Command(object):
                 if "<domain" not in domxml:
                     continue
                 domxml = "<domain" + domxml.split("<domain", 1)[1]
-                domxml = domxml + "</domain>"
+                domxml = f"{domxml}</domain>"
                 try:
                     dom = conn.defineXML(domxml)
                     dom.undefine()
@@ -382,31 +379,29 @@ class App(object):
         self.uri = uri
 
     def _default_args(self, cli, iscompare):
-        args = ""
-        if not iscompare:
-            args = "--debug"
-
+        args = "" if iscompare else "--debug"
         if "--connect " not in cli:
             uri = self.uri or utils.URIs.test_suite
-            args += " --connect %s" % uri
+            args += f" --connect {uri}"
 
-        if self.appname in ["virt-install"]:
-            # Excluding 'lxc' is a hack. We need to remove this, but it
-            # will take some work
-            if "--ram " not in cli and "lxc" not in cli:
-                args += " --ram 64"
+        if (
+            self.appname in ["virt-install"]
+            and "--ram " not in cli
+            and "lxc" not in cli
+        ):
+            args += " --ram 64"
 
         if iscompare:
-            if self.appname == "virt-install":
+            if self.appname == "virt-clone":
+                if "--print-xml" not in cli:
+                    args += " --print-xml"
+                    args += " --__test-nodry"
+
+            elif self.appname == "virt-install":
                 if ("--print-xml" not in cli and
                     "--print-step" not in cli and
                     "--quiet" not in cli):
                     args += " --print-step all"
-
-            elif self.appname == "virt-clone":
-                if "--print-xml" not in cli:
-                    args += " --print-xml"
-                    args += " --__test-nodry"
 
         return args
 
@@ -418,23 +413,24 @@ class App(object):
 
     def _add(self, catname, testargs, compbase, **kwargs):
         category = self.categories[catname]
-        args = category.default_args + " " + testargs
+        args = f"{category.default_args} {testargs}"
 
-        use_default_args = kwargs.pop("use_default_args", True)
-        if use_default_args:
-            args = category.default_args + " " + testargs
+        if use_default_args := kwargs.pop("use_default_args", True):
+            args = f"{category.default_args} {testargs}"
             defargs = self._default_args(args, bool(compbase))
-            args += " " + defargs
+            args += f" {defargs}"
         else:
             args = testargs
 
-        cmdstr = "./%s %s" % (self.appname, args)
+        cmdstr = f"./{self.appname} {args}"
 
         kwargs["skip_checks"] = category.skip_checks
         if compbase:
-            compare_XMLDIR = "%s/compare" % XMLDIR
-            kwargs["compare_file"] = "%s/%s-%s.xml" % (
-                    compare_XMLDIR, os.path.basename(self.appname), compbase)
+            compare_XMLDIR = f"{XMLDIR}/compare"
+            kwargs[
+                "compare_file"
+            ] = f"{compare_XMLDIR}/{os.path.basename(self.appname)}-{compbase}.xml"
+
 
         cmd = Command(cmdstr, **kwargs)
         self.cmds.append(cmd)

@@ -79,12 +79,12 @@ class my_build_i18n(setuptools.Command):
         po_dir = "po"
         if self.merge_po:
             pot_file = os.path.join("po", "virt-manager.pot")
-            for po_file in glob.glob("%s/*.po" % po_dir):
+            for po_file in glob.glob(f"{po_dir}/*.po"):
                 cmd = ["msgmerge", "--previous", "-o", po_file, po_file, pot_file]
                 self.spawn(cmd)
 
         max_po_mtime = 0
-        for po_file in glob.glob("%s/*.po" % po_dir):
+        for po_file in glob.glob(f"{po_dir}/*.po"):
             lang = os.path.basename(po_file[:-3])
             mo_dir = os.path.join("build", "mo", lang, "LC_MESSAGES")
             mo_file = os.path.join(mo_dir, "virt-manager.mo")
@@ -148,14 +148,14 @@ from %(pkgname)s import %(filename)s
         sharepath = os.path.join(BuildConfig.prefix, "share", "virt-manager")
 
         def make_script(pkgname, filename, toolname):
-            assert os.path.exists(pkgname + "/" + filename + ".py")
+            assert os.path.exists(f"{pkgname}/{filename}.py")
             content = template % {
                 "sharepath": sharepath,
                 "pkgname": pkgname,
                 "filename": filename}
 
             newpath = os.path.abspath(os.path.join("build", toolname))
-            print("Generating %s" % newpath)
+            print(f"Generating {newpath}")
             open(newpath, "w").write(content)
 
         make_script("virtinst", "virtinstall", "virt-install")
@@ -174,10 +174,9 @@ from %(pkgname)s import %(filename)s
         for path in glob.glob("man/*.rst"):
             base = os.path.basename(path)
             appname = os.path.splitext(base)[0]
-            newpath = os.path.join(os.path.dirname(path),
-                                   appname + ".1")
+            newpath = os.path.join(os.path.dirname(path), f"{appname}.1")
 
-            print("Generating %s" % newpath)
+            print(f"Generating {newpath}")
             out = subprocess.check_output([rstbin, "--strict", path])
             open(newpath, "wb").write(out)
 
@@ -187,15 +186,12 @@ from %(pkgname)s import %(filename)s
     def _build_icons(self):
         for size in glob.glob(os.path.join("data/icons", "*")):
             for category in glob.glob(os.path.join(size, "*")):
-                icons = []
-                for icon in glob.glob(os.path.join(category, "*")):
-                    icons.append(icon)
+                icons = list(glob.glob(os.path.join(category, "*")))
                 if not icons:
                     continue
 
                 category = os.path.basename(category)
-                dest = ("share/icons/hicolor/%s/%s" %
-                        (os.path.basename(size), category))
+                dest = f"share/icons/hicolor/{os.path.basename(size)}/{category}"
                 if category != "apps":
                     dest = dest.replace("share/", "share/virt-manager/")
 
@@ -212,11 +208,10 @@ from %(pkgname)s import %(filename)s
         instpaths = []
         for script in scripts:
             genfile = os.path.join(builddir, script)
-            print("Generating %s" % genfile)
+            print(f"Generating {genfile}")
             src = open(srcfile, "r")
-            dst = open(genfile, "w")
-            dst.write(src.read().replace("::SCRIPTNAME::", script))
-            dst.close()
+            with open(genfile, "w") as dst:
+                dst.write(src.read().replace("::SCRIPTNAME::", script))
             instpaths.append(genfile)
 
         bashdir = "share/bash-completion/completions/"
@@ -248,11 +243,13 @@ class my_install(setuptools.command.install.install):
     def finalize_options(self):
         if self.prefix is None:
             if BuildConfig.prefix != SYSPREFIX:
-                print("Using configured prefix=%s instead of SYSPREFIX=%s" % (
-                    BuildConfig.prefix, SYSPREFIX))
+                print(
+                    f"Using configured prefix={BuildConfig.prefix} instead of SYSPREFIX={SYSPREFIX}"
+                )
+
                 self.prefix = BuildConfig.prefix
             else:
-                print("Using SYSPREFIX=%s" % SYSPREFIX)
+                print(f"Using SYSPREFIX={SYSPREFIX}")
                 self.prefix = SYSPREFIX
 
         elif self.prefix != BuildConfig.prefix:
@@ -295,12 +292,17 @@ class my_rpm(setuptools.Command):
         self.run_command('sdist')
         srcdir = os.path.dirname(__file__)
         cmd = [
-            "rpmbuild", "-ta",
-            "--define", "_rpmdir %s" % srcdir,
-            "--define", "_srcrpmdir %s" % srcdir,
-            "--define", "_specdir /tmp",
-            "dist/virt-manager-%s.tar.gz" % BuildConfig.version,
+            "rpmbuild",
+            "-ta",
+            "--define",
+            f"_rpmdir {srcdir}",
+            "--define",
+            f"_srcrpmdir {srcdir}",
+            "--define",
+            "_specdir /tmp",
+            f"dist/virt-manager-{BuildConfig.version}.tar.gz",
         ]
+
         subprocess.check_call(cmd)
 
 
@@ -326,8 +328,7 @@ class configure(setuptools.Command):
 
 
     def run(self):
-        template = ""
-        template += "[config]\n"
+        template = "" + "[config]\n"
         template += "prefix = %s\n" % self.prefix
         if self.default_graphics is not None:
             template += "default_graphics = %s\n" % self.default_graphics
@@ -335,7 +336,7 @@ class configure(setuptools.Command):
             template += "default_hvs = %s\n" % self.default_hvs
 
         open(BuildConfig.cfgpath, "w").write(template)
-        print("Generated %s" % BuildConfig.cfgpath)
+        print(f"Generated {BuildConfig.cfgpath}")
 
 
 class TestCommand(setuptools.Command):
@@ -395,9 +396,9 @@ class CheckPylint(setuptools.Command):
         except ImportError:
             print("codespell is not installed. skipping...")
         except Exception as e:
-            print("Error running codespell: %s" % e)
+            print(f"Error running codespell: {e}")
 
-        output_format = sys.stdout.isatty() and "colorized" or "text"
+        output_format = "colorized" if sys.stdout.isatty() else "text"
 
         print("running pycodestyle")
         style_guide = pycodestyle.StyleGuide(
@@ -410,10 +411,7 @@ class CheckPylint(setuptools.Command):
             sys.stderr.write(str(report.total_errors) + '\n')
 
         print("running pylint")
-        pylint_opts = [
-            "--rcfile", ".pylintrc",
-            "--output-format=%s" % output_format,
-        ]
+        pylint_opts = ["--rcfile", ".pylintrc", f"--output-format={output_format}"]
         if self.jobs:
             pylint_opts += ["--jobs=%d" % self.jobs]
 
@@ -449,12 +447,13 @@ class ExtractMessages(setuptools.Command):
         xgettext_args = [
             "xgettext",
             "--add-comments=translators",
-            "--msgid-bugs-address=" + bug_address,
+            f"--msgid-bugs-address={bug_address}",
             "--package-name=virt-manager",
-            "--output=" + potfile,
+            f"--output={potfile}",
             "--sort-by-file",
             "--join-existing",
         ]
+
 
         # Truncate .pot file to ensure it exists
         open(potfile, "w").write("")

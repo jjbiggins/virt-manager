@@ -17,14 +17,13 @@ from .logger import log
 
 
 def _media_create_from_location(location):
-    if not hasattr(Libosinfo.Media, "create_from_location_with_flags"):
-        return Libosinfo.Media.create_from_location(  # pragma: no cover
-                location, None)
-
-    # We prefer this API, because by default it will not
-    # reject non-bootable media, like debian s390x
-    # pylint: disable=no-member
-    return Libosinfo.Media.create_from_location_with_flags(location, None, 0)
+    return (
+        Libosinfo.Media.create_from_location_with_flags(location, None, 0)
+        if hasattr(Libosinfo.Media, "create_from_location_with_flags")
+        else Libosinfo.Media.create_from_location(  # pragma: no cover
+            location, None
+        )
+    )
 
 
 class _OsinfoIter:
@@ -119,13 +118,15 @@ class _OSDB(object):
             log.debug("Error creating libosinfo media object: %s", str(e))
             return None
 
-        if not self._os_db.identify_media(media):
-            return None
-        return media.get_os().get_short_id(), _OsMedia(media)
+        return (
+            (media.get_os().get_short_id(), _OsMedia(media))
+            if self._os_db.identify_media(media)
+            else None
+        )
 
     def guess_os_by_tree(self, location):
         if location.startswith("/"):
-            location = "file://" + location
+            location = f"file://{location}"
 
         if xmlutil.in_testsuite() and not location.startswith("file:"):
             # We have mock network tests, but we don't want to pass the
@@ -141,14 +142,14 @@ class _OSDB(object):
 
         if hasattr(self._os_db, "identify_tree"):
             # osinfo_db_identify_tree is part of libosinfo 1.6.0
-            if not self._os_db.identify_tree(tree):
-                return None  # pragma: no cover
-            return tree.get_os().get_short_id(), _OsTree(tree)
-        else:  # pragma: no cover
-            osobj, treeobj = self._os_db.guess_os_from_tree(tree)
-            if not osobj:
-                return None  # pragma: no cover
-            return osobj.get_short_id(), _OsTree(treeobj)
+            return (
+                (tree.get_os().get_short_id(), _OsTree(tree))
+                if self._os_db.identify_tree(tree)
+                else None
+            )
+
+        osobj, treeobj = self._os_db.guess_os_from_tree(tree)
+        return (osobj.get_short_id(), _OsTree(treeobj)) if osobj else None
 
     def list_os(self, sortkey="name"):
         """
@@ -186,8 +187,7 @@ class _OsResources:
         """
         ret = {}
         for r in _OsinfoIter(resources):
-            vals = {}
-            vals["ram"] = r.get_ram()
+            vals = {"ram": r.get_ram()}
             vals["n-cpus"] = r.get_n_cpus()
             vals["storage"] = r.get_storage()
             ret[r.get_architecture()] = vals
@@ -208,11 +208,7 @@ class _OsResources:
         val = self._get_key(self._recommended, key, arch)
         if val and val > 0:
             return val
-        # If we are looking for a recommended value, but the OS
-        # DB only has minimum resources tracked, double the minimum
-        # value as an approximation at a 'recommended' value
-        val = self._get_minimum_key(key, arch)
-        if val:
+        if val := self._get_minimum_key(key, arch):
             log.debug("No recommended value found for key='%s', "
                     "using minimum=%s * 2", key, val)
             return val * 2
@@ -255,7 +251,7 @@ class _OsVariant(object):
         self.eol = self._get_eol()
 
     def __repr__(self):
-        return "<%s name=%s>" % (self.__class__.__name__, self.name)
+        return f"<{self.__class__.__name__} name={self.name}>"
 
 
     ########################
@@ -308,11 +304,7 @@ class _OsVariant(object):
             ret.append(dev.get_name())
 
         extra_devs = extra_devs or []
-        for dev in extra_devs:
-            if dev.get_id() not in devids:
-                continue
-            ret.append(dev.get_name())
-
+        ret.extend(dev.get_name() for dev in extra_devs if dev.get_id() in devids)
         return ret
 
 
@@ -330,10 +322,10 @@ class _OsVariant(object):
                 Libosinfo.OS_PROP_RELEASE_STATUS) or None
 
         def _glib_to_datetime(glibdate):
-            date = "%s-%s" % (glibdate.get_year(), glibdate.get_day_of_year())
+            date = f"{glibdate.get_year()}-{glibdate.get_day_of_year()}"
             return datetime.datetime.strptime(date, "%Y-%j")
 
-        now = datetime.datetime.today()
+        now = datetime.datetime.now()
         if eol is not None:
             return now > _glib_to_datetime(eol)
 
@@ -483,7 +475,7 @@ class _OsVariant(object):
             resources = self._os.get_network_install_resources()
             for r in _OsinfoIter(resources):
                 arch = r.get_architecture()
-                if arch == guest.os.arch or arch == "all":
+                if arch in [guest.os.arch, "all"]:
                     return r.get_ram()
 
     def get_kernel_url_arg(self):
@@ -501,18 +493,18 @@ class _OsVariant(object):
         if self.distro in ["caasp", "sle", "sled", "sles", "opensuse"]:
             return "install"
 
-        if self.distro not in ["centos", "rhel", "fedora"]:
-            return None
-
-        # Default for RH distros, in case libosinfo data isn't complete
-        return "inst.repo"  # pragma: no cover
+        return None if self.distro not in ["centos", "rhel", "fedora"] else "inst.repo"
 
     def _get_generic_location(self, treelist, arch, profile):
         if not hasattr(Libosinfo.Tree, "get_os_variants"):  # pragma: no cover
-            for tree in treelist:
-                if tree.get_architecture() == arch:
-                    return tree.get_url()
-            return None
+            return next(
+                (
+                    tree.get_url()
+                    for tree in treelist
+                    if tree.get_architecture() == arch
+                ),
+                None,
+            )
 
         fallback_tree = None
         if profile == "jeos":
@@ -532,9 +524,7 @@ class _OsVariant(object):
                 if profile in variant.get_name():
                     return tree.get_url()
 
-        if fallback_tree:
-            return fallback_tree.get_url()
-        return None
+        return fallback_tree.get_url() if fallback_tree else None
 
     def get_location(self, arch, profile=None):
         treelist = list(_OsinfoIter(self._os.get_tree_list()))
@@ -543,13 +533,7 @@ class _OsVariant(object):
             raise RuntimeError(
                 _("OS '%s' does not have a URL location") % self.name)
 
-        # Some distros have more than one URL for a specific architecture,
-        # which is the case for Fedora and different variants (Server,
-        # Workstation). Later on, we'll have to differentiate that and return
-        # the right one. However, for now, let's just rely on returning the
-        # most generic tree possible.
-        location = self._get_generic_location(treelist, arch, profile)
-        if location:
+        if location := self._get_generic_location(treelist, arch, profile):
             return location
 
         raise RuntimeError(
@@ -563,20 +547,21 @@ class _OsVariant(object):
     def _get_installable_drivers(self, arch):
         installable_drivers = []
         device_drivers = list(_OsinfoIter(self._os.get_device_drivers()))
-        for device_driver in device_drivers:
-            if arch != "all" and device_driver.get_architecture() != arch:
-                continue
+        installable_drivers.extend(
+            device_driver
+            for device_driver in device_drivers
+            if arch == "all" or device_driver.get_architecture() == arch
+        )
 
-            installable_drivers.append(device_driver)
         return installable_drivers
 
     def _get_pre_installable_drivers(self, arch):
         installable_drivers = self._get_installable_drivers(arch)
-        pre_inst_drivers = []
-        for driver in installable_drivers:
-            if driver.get_pre_installable():
-                pre_inst_drivers.append(driver)
-        return pre_inst_drivers
+        return [
+            driver
+            for driver in installable_drivers
+            if driver.get_pre_installable()
+        ]
 
     def _get_drivers_location(self, drivers):
         locations = []
@@ -600,9 +585,7 @@ class _OsVariant(object):
         return devices
 
     def supports_unattended_drivers(self, arch):
-        if self._get_pre_installable_drivers(arch):
-            return True
-        return False
+        return bool(self._get_pre_installable_drivers(arch))
 
 
 class _OsMedia(object):
@@ -618,10 +601,7 @@ class _OsMedia(object):
 
     def is_netinst(self):
         variants = list(_OsinfoIter(self._media.get_os_variants()))
-        for variant in variants:
-            if "netinst" in variant.get_id():
-                return True
-        return False  # pragma: no cover
+        return any("netinst" in variant.get_id() for variant in variants)
 
     def get_install_script_list(self):
         return list(_OsinfoIter(self._media.get_install_script_list()))

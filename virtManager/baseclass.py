@@ -306,10 +306,10 @@ class vmmGObjectUI(vmmGObject):
     err = property(_get_err)
 
     def widget(self, name):
-        ret = self.builder.get_object(name)
-        if not ret:
-            raise xmlutil.DevError("Did not find widget name=%s" % name)
-        return ret
+        if ret := self.builder.get_object(name):
+            return ret
+        else:
+            raise xmlutil.DevError(f"Did not find widget name={name}")
 
     def cleanup(self):
         if self.__cleaned_up:

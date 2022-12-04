@@ -31,29 +31,32 @@ class DeviceHostdev(Device):
             self.vendor = nodedev.vendor_id
             self.product = nodedev.product_id
 
-            count = 0
-            for dev in self.conn.fetch_all_nodedevs():
-                if (dev.device_type == NodeDevice.CAPABILITY_TYPE_USBDEV and
-                    dev.vendor_id == self.vendor and
-                    dev.product_id == self.product):
-                    count += 1
+            count = sum(
+                dev.device_type == NodeDevice.CAPABILITY_TYPE_USBDEV
+                and dev.vendor_id == self.vendor
+                and dev.product_id == self.product
+                for dev in self.conn.fetch_all_nodedevs()
+            )
 
             if count > 1:
                 self.bus = nodedev.bus
                 self.device = nodedev.device
 
         elif nodedev.device_type == nodedev.CAPABILITY_TYPE_NET:
-            founddev = None
-            for checkdev in self.conn.fetch_all_nodedevs():
-                if checkdev.name == nodedev.parent:
-                    founddev = checkdev
-                    break
+            founddev = next(
+                (
+                    checkdev
+                    for checkdev in self.conn.fetch_all_nodedevs()
+                    if checkdev.name == nodedev.parent
+                ),
+                None,
+            )
 
             self.set_from_nodedev(founddev)
 
         elif nodedev.device_type == nodedev.CAPABILITY_TYPE_SCSIDEV:
             self.type = "scsi"
-            self.scsi_adapter = "scsi_host%s" % nodedev.host
+            self.scsi_adapter = f"scsi_host{nodedev.host}"
             self.scsi_bus = nodedev.bus
             self.scsi_target = nodedev.target
             self.scsi_unit = nodedev.lun
@@ -138,6 +141,6 @@ class DeviceHostdev(Device):
 
     def set_defaults(self, guest):
         if self.managed is None:
-            self.managed = self.conn.is_xen() and "no" or "yes"
+            self.managed = "no" if self.conn.is_xen() else "yes"
         if not self.mode:
             self.mode = "subsystem"

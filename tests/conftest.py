@@ -76,9 +76,8 @@ def pytest_collection_modifyitems(config, items):
         from tests import urlfetcher_mock
         urlfetcher_mock.setup_mock()
 
-    if find_items("test_inject.py"):
-        if not config.getoption("--capture") == "no":
-            pytest.fail("test_inject.py requires `pytest --capture=no`")
+    if find_items("test_inject.py") and config.getoption("--capture") != "no":
+        pytest.fail("test_inject.py requires `pytest --capture=no`")
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)

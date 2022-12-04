@@ -205,7 +205,7 @@ class vmmHostNets(vmmGObjectUI):
 
         dhcpstr = _("Disabled")
         if dhcpstart:
-            dhcpstr = dhcpstart + " - " + dhcpend
+            dhcpstr = f"{dhcpstart} - {dhcpend}"
         self.widget("net-ipv4-dhcp-range").set_text(dhcpstr)
         self.widget("net-ipv4-network").set_text(netstr)
 
@@ -224,7 +224,7 @@ class vmmHostNets(vmmGObjectUI):
 
         dhcpstr = _("Disabled")
         if dhcpstart:
-            dhcpstr = dhcpstart + " - " + dhcpend
+            dhcpstr = f"{dhcpstart} - {dhcpend}"
         self.widget("net-ipv6-dhcp-range").set_text(dhcpstr)
         self.widget("net-ipv6-network").set_text(netstr or "")
 

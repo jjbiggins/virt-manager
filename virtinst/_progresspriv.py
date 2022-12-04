@@ -210,10 +210,10 @@ class TextMeter(BaseMeter):
         # Include text + ui_rate in minimal
         tl = TerminalLine(8, 8 + 1 + 8)
         # For big screens, make it more readable.
-        use_hours = bool(tl.llen > 80)
+        use_hours = tl.llen > 80
         ui_size = tl.add(' | %5sB' % fread)
         if self.size is None:
-            ui_time = tl.add('  %s' % format_time(etime, use_hours))
+            ui_time = tl.add(f'  {format_time(etime, use_hours)}')
             ui_end = tl.add(' ' * 5)
             ui_rate = tl.add(' %5sB/s' % ave_dl)
             out = '%-*.*s%s%s%s%s\r' % (tl.rest(), tl.rest(), self.text,
@@ -223,7 +223,7 @@ class TextMeter(BaseMeter):
             frtime = format_time(rtime, use_hours)
             frac = self.re.fraction_read()
 
-            ui_time = tl.add('  %s' % frtime)
+            ui_time = tl.add(f'  {frtime}')
             ui_end = tl.add(' ETA ')
 
             ui_pc = tl.add(' %2i%%' % (frac * 100))
@@ -246,7 +246,7 @@ class TextMeter(BaseMeter):
 
         tl = TerminalLine(8)
         # For big screens, make it more readable.
-        use_hours = bool(tl.llen > 80)
+        use_hours = tl.llen > 80
         ui_size = tl.add(' | %5sB' % total_size)
         ui_time = tl.add('  %s' % format_time(self.re.elapsed_time(),
                                               use_hours))
@@ -315,9 +315,7 @@ class RateEstimator:
         (can be None for unknown transfer size)"""
         if self.total is None:
             return None
-        if self.total == 0:
-            return 1.0  # pragma: no cover
-        return float(self.last_amount_read) / self.total
+        return 1.0 if self.total == 0 else float(self.last_amount_read) / self.total
 
     #########################################################################
     # support methods
@@ -354,22 +352,18 @@ class RateEstimator:
 
 def format_time(seconds, use_hours=0):
     if seconds is None or seconds < 0:
-        if use_hours:
-            return '--:--:--'
-        else:
-            return '--:--'
+        return '--:--:--' if use_hours else '--:--'
     elif seconds == float('inf'):
         return 'Infinite'  # pragma: no cover
     else:
         seconds = int(seconds)
         minutes = seconds // 60
-        seconds = seconds % 60
-        if use_hours:
-            hours = minutes // 60
-            minutes = minutes % 60
-            return '%02i:%02i:%02i' % (hours, minutes, seconds)
-        else:
+        seconds %= 60
+        if not use_hours:
             return '%02i:%02i' % (minutes, seconds)
+        hours = minutes // 60
+        minutes = minutes % 60
+        return '%02i:%02i:%02i' % (hours, minutes, seconds)
 
 
 def format_number(number):
@@ -394,7 +388,7 @@ def format_number(number):
     # of our list.  In that event, the formatting will be screwed up,
     # but it'll still show the right number.
     while number > thresh and depth < max_depth:
-        depth = depth + 1
+        depth += 1
         number = number / step
 
     if isinstance(number, int):

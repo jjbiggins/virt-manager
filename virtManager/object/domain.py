@@ -74,8 +74,7 @@ class _IPFetcher:
         self._cache = {"qemuga": {}, "arp": {}}
 
         if iface.type == "network":
-            net = vm.conn.get_net_by_name(iface.source)
-            if net:
+            if net := vm.conn.get_net_by_name(iface.source):
                 net.get_dhcp_leases(refresh=True)
 
         if not vm.is_active():
@@ -242,10 +241,7 @@ class vmmDomainSnapshot(vmmLibvirtObject):
     def is_external(self):
         if self.get_xmlobj().memory_type == "external":
             return True
-        for disk in self.get_xmlobj().disks:
-            if disk.snapshot == "external":
-                return True
-        return False
+        return any(disk.snapshot == "external" for disk in self.get_xmlobj().disks)
 
 
 class _vmmDomainSetTimeThread(vmmGObject):
@@ -427,10 +423,7 @@ class vmmDomain(vmmLibvirtObject):
 
     def has_spicevmc_type_redirdev(self):
         devs = self.xmlobj.devices.redirdev
-        for dev in devs:
-            if dev.type == "spicevmc":
-                return True
-        return False
+        return any(dev.type == "spicevmc" for dev in devs)
 
     def has_nvram(self):
         return bool(self.get_xmlobj().is_uefi() or
@@ -512,8 +505,7 @@ class vmmDomain(vmmLibvirtObject):
         if for_hotplug:
             return origdev
 
-        dev = xmlobj.find_device(origdev)
-        if dev:
+        if dev := xmlobj.find_device(origdev):
             return dev
 
         # If we are removing multiple dev from an active VM, a double
@@ -548,7 +540,10 @@ class vmmDomain(vmmLibvirtObject):
             old_nvram_path = os.path.join(
                 self.conn.get_backend().get_libvirt_data_root_dir(),
                 self.conn.get_backend().get_uri_driver(),
-                "nvram", "%s_VARS.fd" % self.get_name())
+                "nvram",
+                f"{self.get_name()}_VARS.fd",
+            )
+
             log.debug("Guest is expected to use <nvram> but we didn't "
                       "find one in the XML. Generated implied path=%s",
                       old_nvram_path)
@@ -566,8 +561,10 @@ class vmmDomain(vmmLibvirtObject):
         old_nvram.set_source_path(old_nvram_path)
 
         nvram_dir = os.path.dirname(old_nvram.get_source_path())
-        new_nvram_path = os.path.join(nvram_dir,
-                "%s_VARS.fd" % os.path.basename(new_name))
+        new_nvram_path = os.path.join(
+            nvram_dir, f"{os.path.basename(new_name)}_VARS.fd"
+        )
+
 
         new_nvram = Cloner.build_clone_disk(
                 old_nvram, new_nvram_path, True, False)
@@ -633,8 +630,7 @@ class vmmDomain(vmmLibvirtObject):
             return  # pragma: no cover
 
         if con:
-            rmcon = xmlobj.find_device(con)
-            if rmcon:
+            if rmcon := xmlobj.find_device(con):
                 xmlobj.remove_device(rmcon)
         xmlobj.remove_device(editdev)
 
@@ -904,7 +900,7 @@ class vmmDomain(vmmLibvirtObject):
         if not editdev:
             return  # pragma: no cover
 
-        if model != _SENTINEL and model != editdev.model:
+        if model not in [_SENTINEL, editdev.model]:
             editdev.model = model
             editdev.address.clear()
 
@@ -1191,7 +1187,7 @@ class vmmDomain(vmmLibvirtObject):
     def create_snapshot(self, xml, redefine=False):
         flags = 0
         if redefine:
-            flags = (flags | libvirt.VIR_DOMAIN_SNAPSHOT_CREATE_REDEFINE)
+            flags |= libvirt.VIR_DOMAIN_SNAPSHOT_CREATE_REDEFINE
         else:
             log.debug("Creating snapshot flags=%s xml=\n%s", flags, xml)
         self._backend.snapshotCreateXML(xml, flags)
@@ -1200,11 +1196,17 @@ class vmmDomain(vmmLibvirtObject):
         """
         Return agent channel object if it is defined.
         """
-        for dev in self.xmlobj.devices.channel:
-            if (dev.type == "unix" and
-                dev.target_name == dev.CHANNEL_NAME_QEMUGA):
-                return dev
-        return None
+        return next(
+            (
+                dev
+                for dev in self.xmlobj.devices.channel
+                if (
+                    dev.type == "unix"
+                    and dev.target_name == dev.CHANNEL_NAME_QEMUGA
+                )
+            ),
+            None,
+        )
 
     def has_agent(self):
         """
@@ -1318,10 +1320,7 @@ class vmmDomain(vmmLibvirtObject):
         return self.get_xmlobj().os.machine
 
     def get_name_or_title(self):
-        title = self.get_title()
-        if title:
-            return title
-        return self.get_name()
+        return title if (title := self.get_title()) else self.get_name()
 
     def get_title(self):
         return self.get_xmlobj().title
@@ -1422,9 +1421,8 @@ class vmmDomain(vmmLibvirtObject):
             flags |= getattr(libvirt, "VIR_DOMAIN_UNDEFINE_MANAGED_SAVE", 0)
             if self.has_nvram():
                 flags |= getattr(libvirt, "VIR_DOMAIN_UNDEFINE_NVRAM", 0)
-        else:
-            if self.has_nvram():
-                flags |= getattr(libvirt, "VIR_DOMAIN_UNDEFINE_KEEP_NVRAM", 0)
+        elif self.has_nvram():
+            flags |= getattr(libvirt, "VIR_DOMAIN_UNDEFINE_KEEP_NVRAM", 0)
         try:
             self._backend.undefineFlags(flags)
         except libvirt.libvirtError:
@@ -1576,9 +1574,7 @@ class vmmDomain(vmmLibvirtObject):
     ###################
 
     def _normalize_status(self, status):
-        if status == libvirt.VIR_DOMAIN_NOSTATE:
-            return libvirt.VIR_DOMAIN_RUNNING  # pragma: no cover
-        elif status == libvirt.VIR_DOMAIN_BLOCKED:
+        if status in [libvirt.VIR_DOMAIN_NOSTATE, libvirt.VIR_DOMAIN_BLOCKED]:
             return libvirt.VIR_DOMAIN_RUNNING  # pragma: no cover
         return status
 
@@ -1638,9 +1634,7 @@ class vmmDomain(vmmLibvirtObject):
         self.config.set_pervm(self.get_uuid(), "/scaling", value)
     def get_console_scaling(self):
         ret = self.config.get_pervm(self.get_uuid(), "/scaling")
-        if ret == -1:
-            return self.config.get_console_scaling()
-        return ret
+        return self.config.get_console_scaling() if ret == -1 else ret
 
     def on_console_resizeguest_changed(self, *args, **kwargs):
         return self.config.listen_pervm(self.get_uuid(), "/resize-guest",
@@ -1649,9 +1643,7 @@ class vmmDomain(vmmLibvirtObject):
         self.config.set_pervm(self.get_uuid(), "/resize-guest", value)
     def get_console_resizeguest(self):
         ret = self.config.get_pervm(self.get_uuid(), "/resize-guest")
-        if ret == -1:
-            return self.config.get_console_resizeguest()
-        return ret
+        return self.config.get_console_resizeguest() if ret == -1 else ret
 
     def on_console_autoconnect_changed(self, *args, **kwargs):
         return self.config.listen_pervm(self.get_uuid(), "/resize-guest",
@@ -1660,15 +1652,12 @@ class vmmDomain(vmmLibvirtObject):
         self.config.set_pervm(self.get_uuid(), "/autoconnect", value)
     def get_console_autoconnect(self):
         ret = self.config.get_pervm(self.get_uuid(), "/autoconnect")
-        if ret == -1:
-            return self.config.get_console_autoconnect()
-        return ret
+        return self.config.get_console_autoconnect() if ret == -1 else ret
 
     def set_details_window_size(self, w, h):
         self.config.set_pervm(self.get_uuid(), "/vm-window-size", (w, h))
     def get_details_window_size(self):
-        ret = self.config.get_pervm(self.get_uuid(), "/vm-window-size")
-        return ret
+        return self.config.get_pervm(self.get_uuid(), "/vm-window-size")
 
     def get_console_username(self):
         return self.config.get_pervm(self.get_uuid(), "/console-username")

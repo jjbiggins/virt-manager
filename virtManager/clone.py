@@ -69,9 +69,7 @@ class _StorageInfo:
     def get_orig_disk_path(self):
         return self._orig_disk.get_source_path()
     def get_new_disk_path(self):
-        if self._manual_path:
-            return self._manual_path
-        return self._generated_path
+        return self._manual_path or self._generated_path
 
     def set_clone_requested(self, val):
         self._is_clone_requested = bool(val)
@@ -107,8 +105,7 @@ class _StorageInfo:
     ###################
 
     def get_tooltip(self):
-        lines = []
-        lines.append(_("Disk target: %s") % self.get_target())
+        lines = [_("Disk target: %s") % self.get_target()]
         lines.append(_("Original path: %s") % self.get_orig_disk_path())
         if self.get_new_disk_path():
             lines.append(_("New path: %s") % self.get_new_disk_path())
@@ -127,43 +124,30 @@ class _StorageInfo:
         return "\n".join(lines)
 
     def get_markup(self, vm):
-        lines = []
-
         line = ""
-        path = self.get_orig_disk_path()
-        if path:
-            line += path
-        else:
-            line += _("No storage.")
-        lines.append(line)
-
+        line += path if (path := self.get_orig_disk_path()) else _("No storage.")
+        lines = [line]
         line = ""
         if self.is_share_requested():
             line += _("Share disk with %s") % vm.get_name()
         if self.is_clone_requested():
             line += _("Clone this disk")
-            sizelabel = self.get_size_label()
-            if sizelabel:
-                line += " (%s)" % sizelabel
+            if sizelabel := self.get_size_label():
+                line += f" ({sizelabel})"
         if line:
             lines.append(line)
 
         label = "\n".join(lines)
-        markup = "<small>%s</small>" % xmlutil.xml_escape(label)
-        return markup
+        return f"<small>{xmlutil.xml_escape(label)}</small>"
 
     def get_icon_name(self):
         if self._orig_disk.is_floppy():
             return "media-floppy"
-        if self._orig_disk.is_cdrom():
-            return "media-optical"
-        return "drive-harddisk"
+        return "media-optical" if self._orig_disk.is_cdrom() else "drive-harddisk"
 
     def get_size_label(self):
         size = self._orig_disk.get_size()
-        if not size:
-            return ""  # pragma: no cover
-        return "%.1f GiB" % float(size)
+        return "%.1f GiB" % float(size) if size else ""
 
 
 class vmmCloneVM(vmmGObjectUI):
@@ -245,8 +229,7 @@ class vmmCloneVM(vmmGObjectUI):
             self.close()
 
     def _set_vm(self, newvm):
-        oldvm = self.vm
-        if oldvm:
+        if oldvm := self.vm:
             oldvm.conn.disconnect_by_obj(self)
         if newvm:
             newvm.conn.connect("vm-removed", self._vm_removed_cb)

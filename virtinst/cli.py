@@ -91,14 +91,12 @@ class VirtHelpFormatter(argparse.RawDescriptionHelpFormatter):
             return argparse.RawDescriptionHelpFormatter._split_lines(
                 self, *args, **kwargs)
 
-        if len(kwargs) != 0 and len(args) != 2:
+        if kwargs and len(args) != 2:
             return return_default()  # pragma: no cover
 
         try:
             text = args[0]
-            if "\n" in text:
-                return text.splitlines()
-            return return_default()
+            return text.splitlines() if "\n" in text else return_default()
         except Exception:  # pragma: no cover
             return return_default()
 
@@ -130,7 +128,7 @@ def setupLogging(appname, debug_stdout, do_quiet, cli_app=True):
     get_global_state().quiet = do_quiet
 
     vi_dir = VirtinstConnection.get_app_cache_dir()
-    logfile = os.path.join(vi_dir, appname + ".log")
+    logfile = os.path.join(vi_dir, f"{appname}.log")
     if xmlutil.in_testsuite():
         vi_dir = None
         logfile = None
@@ -138,25 +136,27 @@ def setupLogging(appname, debug_stdout, do_quiet, cli_app=True):
     try:  # pragma: no cover
         if vi_dir and not os.access(vi_dir, os.W_OK):
             if os.path.exists(vi_dir):
-                raise RuntimeError("No write access to directory %s" % vi_dir)
+                raise RuntimeError(f"No write access to directory {vi_dir}")
 
             try:
                 os.makedirs(vi_dir, 0o751)
             except IOError as e:
-                raise RuntimeError("Could not create directory %s: %s" %
-                                   (vi_dir, e)) from None
+                raise RuntimeError(f"Could not create directory {vi_dir}: {e}") from None
 
         if (logfile and
             os.path.exists(logfile) and
             not os.access(logfile, os.W_OK)):
-            raise RuntimeError("No write access to logfile %s" % logfile)
+            raise RuntimeError(f"No write access to logfile {logfile}")
     except Exception as e:  # pragma: no cover
         log.warning("Error setting up logfile: %s", e)
         logfile = None
 
     dateFormat = "%a, %d %b %Y %H:%M:%S"
-    fileFormat = ("[%(asctime)s " + appname + " %(process)d] "
-                  "%(levelname)s (%(module)s:%(lineno)d) %(message)s")
+    fileFormat = (
+        f"[%(asctime)s {appname}" + " %(process)d] "
+        "%(levelname)s (%(module)s:%(lineno)d) %(message)s"
+    )
+
     streamErrorFormat = "%(levelname)-8s %(message)s"
 
     import logging
@@ -178,10 +178,7 @@ def setupLogging(appname, debug_stdout, do_quiet, cli_app=True):
                                                      dateFormat))
     elif cli_app or not logfile:
         # Have cli tools show WARN/ERROR by default
-        if get_global_state().quiet:
-            level = logging.ERROR
-        else:
-            level = logging.WARN
+        level = logging.ERROR if get_global_state().quiet else logging.WARN
         streamHandler.setLevel(level)
         streamHandler.setFormatter(logging.Formatter(streamErrorFormat))
     else:  # pragma: no cover
@@ -198,6 +195,7 @@ def setupLogging(appname, debug_stdout, do_quiet, cli_app=True):
             # If we are already logging to stdout, don't double print
             # the backtrace
             sys.__excepthook__(typ, val, tb)
+
     sys.excepthook = exception_log
 
     # Log the app command string
@@ -278,7 +276,7 @@ def _fail_exit():
 
 
 def virsh_start_cmd(guest):
-    return ("virsh --connect %s start %s" % (guest.conn.uri, guest.name))
+    return f"virsh --connect {guest.conn.uri} start {guest.name}"
 
 
 def install_fail(guest):
@@ -314,8 +312,7 @@ def _optional_fail(msg, checkname, warn_on_skip=True):
     """
     Handle printing a message with an associated --check option
     """
-    do_check = get_global_state().get_validation_check(checkname)
-    if do_check:
+    if do_check := get_global_state().get_validation_check(checkname):
         fail(msg + (_(" (Use --check %s=off or "
             "--check all=off to override)") % checkname))
 
@@ -388,15 +385,14 @@ def _run_console(message, args):
     if xmlutil.in_testsuite():
         args = ["/bin/test"]
 
-    child = os.fork()
-    if child:
+    if child := os.fork():
         return child
 
     # pylint: disable=protected-access
     try:  # pragma: no cover
         os.execvp(args[0], args)
     except Exception as e:  # pragma: no cover
-        print("Error launching %s: %s" % (args, e))
+        print(f"Error launching {args}: {e}")
     finally:
         os._exit(1)  # pragma: no cover
 
@@ -502,9 +498,12 @@ def _virtparser_completer(prefix, **kwargs):
     for parserclass in _get_completer_parsers():
         if kwargs['action'].dest == parserclass.cli_arg_name:
             # pylint: disable=protected-access
-            for virtarg in sorted(parserclass._virtargs,
-                                  key=lambda p: p.nonregex_cliname()):
-                sub_options.append(virtarg.nonregex_cliname() + "=")
+            sub_options.extend(
+                f"{virtarg.nonregex_cliname()}="
+                for virtarg in sorted(
+                    parserclass._virtargs, key=lambda p: p.nonregex_cliname()
+                )
+            )
 
     entered_options = prefix.split(",")
     for option in entered_options:
@@ -690,9 +689,7 @@ def vcpu_cli_options(grp, backcompat=True, editexample=False):
                "--vcpus 5,maxvcpus=10,cpuset=1-4,6,8\n"
                "--vcpus sockets=2,cores=4,threads=2"))
 
-    extramsg = "--cpu host"
-    if editexample:
-        extramsg = "--cpu host-model,clearxml=yes"
+    extramsg = "--cpu host-model,clearxml=yes" if editexample else "--cpu host"
     grp.add_argument("--cpu", action="append",
         help=_("CPU model and features. Ex:\n"
                "--cpu coreduo,+x2apic\n"
@@ -1064,9 +1061,11 @@ class _VirtCLIArgumentStatic(object):
         _SuboptChecker.add_all(self._testsuite_argcheck_name(self.cliname))
 
     def _testsuite_argcheck_name(self, cliname):
-        if not self._parent_cliname:
-            return "sharedoption %s" % cliname
-        return "--%s %s" % (self._parent_cliname, cliname)
+        return (
+            f"--{self._parent_cliname} {cliname}"
+            if self._parent_cliname
+            else f"sharedoption {cliname}"
+        )
 
     def set_aliases(self, aliases):
         self._aliases = aliases
@@ -1144,7 +1143,7 @@ class _VirtCLIArgument(object):
             if self.propname:
                 xmlutil.get_prop_path(inst, self.propname)
         except AttributeError:  # pragma: no cover
-            msg = "obj=%s does not have member=%s" % (inst, self.propname)
+            msg = f"obj={inst} does not have member={self.propname}"
             raise xmlutil.DevError(msg) from None
 
         if self._virtarg.cb:
@@ -1239,9 +1238,9 @@ def _parse_optstr_to_dict(optstr, virtargs, remove_first):
             # Next tuple is a continuation of the comma argument,
             # sum it up
             opttuples.pop(0)
-            commaopt[1] += "," + cliname
+            commaopt[1] += f",{cliname}"
             if val:
-                commaopt[1] += "=" + val
+                commaopt[1] += f"={val}"
 
         return commaopt
 
@@ -1290,8 +1289,7 @@ class _InitClass(type):
 
         # Check for leftover aliases
         if self.aliases:
-            raise xmlutil.DevError(
-                    "class=%s leftover aliases=%s" % (self, self.aliases))
+            raise xmlutil.DevError(f"class={self} leftover aliases={self.aliases}")
         return self
 
 
@@ -1378,9 +1376,9 @@ class VirtCLIParser(metaclass=_InitClass):
                 prefix = "2"
             return prefix + virtarg.cliname
 
-        print("%s options:" % cls.cli_flag_name())
+        print(f"{cls.cli_flag_name()} options:")
         for arg in sorted(cls._virtargs, key=_sortkey):
-            print("  %s" % arg.cliname)
+            print(f"  {arg.cliname}")
         print("")
 
     @classmethod
@@ -1389,9 +1387,11 @@ class VirtCLIParser(metaclass=_InitClass):
         For the passed obj, return the equivalent of
         getattr(obj, cls.guest_propname), but handle '.' in the guest_propname
         """
-        if not cls.guest_propname:
-            return None  # pragma: no cover
-        return xmlutil.get_prop_path(obj, cls.guest_propname)
+        return (
+            xmlutil.get_prop_path(obj, cls.guest_propname)
+            if cls.guest_propname
+            else None
+        )
 
     @classmethod
     def prop_is_list(cls, obj):
@@ -1967,9 +1967,7 @@ class _AutoconsoleData(object):
     def get_console_cb(self):
         if self.is_graphical():
             return _gfx_console
-        if self.is_text():
-            return _txt_console
-        return None
+        return _txt_console if self.is_text() else None
 
 
 def parse_autoconsole(options, guest, installer):
@@ -2350,14 +2348,9 @@ class ParserCPU(VirtCLIParser):
     def set_feature_cb(self, inst, val, virtarg):
         policy = virtarg.cliname
         for feature_name in xmlutil.listify(val):
-            featureobj = None
-
-            for f in inst.features:
-                if f.name == feature_name:
-                    featureobj = f
-                    break
-
-            if featureobj:
+            if featureobj := next(
+                (f for f in inst.features if f.name == feature_name), None
+            ):
                 featureobj.policy = policy
             else:
                 inst.add_feature(feature_name, policy)
@@ -3060,12 +3053,7 @@ class ParserClock(VirtCLIParser):
     def set_timer(self, inst, val, virtarg):
         tname, propname = virtarg.cliname.split("_")
 
-        timerobj = None
-        for t in inst.timers:
-            if t.name == tname:
-                timerobj = t
-                break
-
+        timerobj = next((t for t in inst.timers if t.name == tname), None)
         if not timerobj:
             timerobj = inst.timers.add_new()
             timerobj.name = tname
@@ -3200,7 +3188,7 @@ class ParserSysinfo(VirtCLIParser):
     ###################
 
     def set_type_cb(self, inst, val, virtarg):
-        if val == "host" or val == "emulate":
+        if val in ["host", "emulate"]:
             self.guest.os.smbios_mode = val
             return
 
@@ -3384,12 +3372,25 @@ def _add_device_seclabel_args(cls, list_propname, prefix=""):
         cls.add_arg(*args, **kwargs)
 
     # DeviceDisk.seclabels properties
-    _add_arg(prefix + "source.seclabel[0-9]*.model", "model",
-                find_inst_cb=seclabel_find_inst_cb)
-    _add_arg(prefix + "source.seclabel[0-9]*.relabel", "relabel",
-                is_onoff=True, find_inst_cb=seclabel_find_inst_cb)
-    _add_arg(prefix + "source.seclabel[0-9]*.label", "label",
-                can_comma=True, find_inst_cb=seclabel_find_inst_cb)
+    _add_arg(
+        f"{prefix}source.seclabel[0-9]*.model",
+        "model",
+        find_inst_cb=seclabel_find_inst_cb,
+    )
+
+    _add_arg(
+        f"{prefix}source.seclabel[0-9]*.relabel",
+        "relabel",
+        is_onoff=True,
+        find_inst_cb=seclabel_find_inst_cb,
+    )
+
+    _add_arg(
+        f"{prefix}source.seclabel[0-9]*.label",
+        "label",
+        can_comma=True,
+        find_inst_cb=seclabel_find_inst_cb,
+    )
 
 
 def _add_char_source_args(cls, prefix=""):
@@ -3435,9 +3436,7 @@ def _add_char_source_args(cls, prefix=""):
 ##################
 
 def _default_image_file_format(conn):
-    if conn.support.conn_default_qcow2():
-        return "qcow2"
-    return "raw"  # pragma: no cover
+    return "qcow2" if conn.support.conn_default_qcow2() else "raw"
 
 
 def _get_default_image_format(conn, poolobj):
@@ -3774,16 +3773,16 @@ class ParserNetwork(VirtCLIParser):
             self.optdict["mac.address"] = self.optdict.pop("mac")
 
         # Back compat with old style network= and bridge=
-        if "type" not in self.optdict:
-            if "network" in self.optdict:
-                self.optdict["type"] = DeviceInterface.TYPE_VIRTUAL
-                self.optdict["source"] = self.optdict.pop("network")
-            elif "bridge" in self.optdict:
-                self.optdict["type"] = DeviceInterface.TYPE_BRIDGE
-                self.optdict["source"] = self.optdict.pop("bridge")
-        else:
+        if "type" in self.optdict:
             self.optdict.pop("network", None)
             self.optdict.pop("bridge", None)
+
+        elif "network" in self.optdict:
+            self.optdict["type"] = DeviceInterface.TYPE_VIRTUAL
+            self.optdict["source"] = self.optdict.pop("network")
+        elif "bridge" in self.optdict:
+            self.optdict["type"] = DeviceInterface.TYPE_BRIDGE
+            self.optdict["source"] = self.optdict.pop("bridge")
 
 
     def _parse(self, inst):
@@ -4457,12 +4456,13 @@ class _ParserChar(VirtCLIParser):
             self.optdict["source.bind_host"] = self.optdict.pop("bind_host")
 
     def _parse(self, inst):
-        if self.optstr == "none" and inst.DEVICE_TYPE == "console":
-            self.guest.skip_default_console = True
-            return
-        if self.optstr == "none" and inst.DEVICE_TYPE == "channel":
-            self.guest.skip_default_channel = True
-            return
+        if self.optstr == "none":
+            if inst.DEVICE_TYPE == "console":
+                self.guest.skip_default_console = True
+                return
+            if inst.DEVICE_TYPE == "channel":
+                self.guest.skip_default_channel = True
+                return
 
         self._add_advertised_aliases()
         return super()._parse(inst)
@@ -4742,9 +4742,7 @@ def _AddressStringToNodedev(conn, addrstr):
 
 
 def _lookupNodedevFromString(conn, idstring):
-    # First try and see if this is a libvirt nodedev name
-    nodedev = NodeDevice.lookupNodedevByName(conn, idstring)
-    if nodedev:
+    if nodedev := NodeDevice.lookupNodedevByName(conn, idstring):
         return nodedev
 
     # If not it must be a special CLI format that we need to parse
@@ -4858,7 +4856,7 @@ def check_option_introspection(options):
             continue
 
         for optstr in optlist:
-            if optstr == "?" or optstr == "help":
+            if optstr in ["?", "help"]:
                 parserclass.print_introspection()
                 ret = True
 

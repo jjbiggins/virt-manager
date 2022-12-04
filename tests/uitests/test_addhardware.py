@@ -25,8 +25,7 @@ def _search_permissions_decorator(fn):
         open(tmpcapspath, "w").write(capsdata)
 
         # We mock a qemu URI to trigger the permissions check
-        uri = (tests.utils.URIs.test_full +
-                ",fakeuri=qemu:///system,caps=%s" % tmpcapspath)
+        uri = f"{tests.utils.URIs.test_full},fakeuri=qemu:///system,caps={tmpcapspath}"
 
         # Create a temporary directory that we can manipulate perms
         tmpobj = tempfile.TemporaryDirectory(
@@ -37,6 +36,7 @@ def _search_permissions_decorator(fn):
             fn(app, uri, tmpdir, *args, **kwargs)
         finally:
             os.chmod(tmpdir, 0o777)
+
     return wrapper
 
 
@@ -56,15 +56,14 @@ def _finish(addhw, check):
 
 def _open_addhw(app, details):
     details.find("add-hardware", "push button").click()
-    addhw = app.find_window("Add New Virtual Hardware")
-    return addhw
+    return app.find_window("Add New Virtual Hardware")
 
 
 def _open_app(app, vmname, title=None, shutdown=False, **kwargs):
     app.open(show_console=vmname, **kwargs)
-    details = app.find_details_window(title or vmname,
-            click_details=True, shutdown=shutdown)
-    return details
+    return app.find_details_window(
+        title or vmname, click_details=True, shutdown=shutdown
+    )
 
 
 ##############
@@ -206,7 +205,7 @@ def testAddDisks(app):
     lib.utils.check(lambda: not chooser.showing)
     lib.utils.check(lambda: addhw.active)
     storageent = tab.find("storage-entry")
-    lib.utils.check(lambda: ("/" + fname) in storageent.text)
+    lib.utils.check(lambda: f"/{fname}" in storageent.text)
 
     # Reopen dialog, select a volume, etic
     tab.find("storage-browse", "push button").click()
@@ -252,7 +251,7 @@ def testAddDiskSearchPermsCheckbox(app, uri, tmpdir):
     addhw = _open_addhw(app, details)
     tab = _select_hw(addhw, "Storage", "storage-tab")
     tab.find_fuzzy("Select or create", "radio").click()
-    path = tmpdir + "/foo1.img"
+    path = f"{tmpdir}/foo1.img"
     tab.find("storage-entry").set_text(path)
     _finish(addhw, check=None)
     app.click_alert_button("emulator may not have", "No")
@@ -262,7 +261,7 @@ def testAddDiskSearchPermsCheckbox(app, uri, tmpdir):
     addhw = _open_addhw(app, details)
     tab = _select_hw(addhw, "Storage", "storage-tab")
     tab.find_fuzzy("Select or create", "radio").click()
-    path = tmpdir + "/foo2.img"
+    path = f"{tmpdir}/foo2.img"
     tab.find("storage-entry").set_text(path)
     _finish(addhw, check=None)
     alert = app.root.find_fuzzy("vmm dialog", "alert")
@@ -274,7 +273,7 @@ def testAddDiskSearchPermsCheckbox(app, uri, tmpdir):
     addhw = _open_addhw(app, details)
     tab = _select_hw(addhw, "Storage", "storage-tab")
     tab.find_fuzzy("Select or create", "radio").click()
-    path = tmpdir + "/foo3.img"
+    path = f"{tmpdir}/foo3.img"
     tab.find("storage-entry").set_text(path)
     _finish(addhw, check=details)
 
@@ -291,7 +290,7 @@ def testAddDiskSearchPermsSuccess(app, uri, tmpdir):
     addhw = _open_addhw(app, details)
     tab = _select_hw(addhw, "Storage", "storage-tab")
     tab.find_fuzzy("Select or create", "radio").click()
-    path = tmpdir + "/foo1.img"
+    path = f"{tmpdir}/foo1.img"
     tab.find("storage-entry").set_text(path)
     _finish(addhw, check=None)
     app.click_alert_button("emulator may not have", "Yes")
@@ -301,7 +300,7 @@ def testAddDiskSearchPermsSuccess(app, uri, tmpdir):
     addhw = _open_addhw(app, details)
     tab = _select_hw(addhw, "Storage", "storage-tab")
     tab.find_fuzzy("Select or create", "radio").click()
-    path = tmpdir + "/foo3.img"
+    path = f"{tmpdir}/foo3.img"
     tab.find("storage-entry").set_text(path)
     _finish(addhw, check=details)
 
@@ -319,7 +318,7 @@ def testAddDiskSearchPermsFail(app, uri, tmpdir):
     addhw = _open_addhw(app, details)
     tab = _select_hw(addhw, "Storage", "storage-tab")
     tab.find_fuzzy("Select or create", "radio").click()
-    path = tmpdir + "/foo1.img"
+    path = f"{tmpdir}/foo1.img"
     tab.find("storage-entry").set_text(path)
     _finish(addhw, check=None)
     app.click_alert_button("emulator may not have", "Yes")
@@ -333,7 +332,7 @@ def testAddDiskSearchPermsFail(app, uri, tmpdir):
     addhw = _open_addhw(app, details)
     tab = _select_hw(addhw, "Storage", "storage-tab")
     tab.find_fuzzy("Select or create", "radio").click()
-    path = tmpdir + "/foo2.img"
+    path = f"{tmpdir}/foo2.img"
     tab.find("storage-entry").set_text(path)
     _finish(addhw, check=details)
 

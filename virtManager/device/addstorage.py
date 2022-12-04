@@ -84,27 +84,23 @@ class vmmAddStorage(vmmGObjectUI):
         max_storage = self._host_disk_space()
 
         def pretty_storage(size):
-            if size == -1:
-                return "Unknown GiB"
-            return "%.1f GiB" % float(size)
+            return "Unknown GiB" if size == -1 else "%.1f GiB" % float(size)
 
         hd_label = (_("%s available in the default location") %
                     pretty_storage(max_storage))
-        hd_label = ("<span>%s</span>" % hd_label)
+        hd_label = f"<span>{hd_label}</span>"
         widget.set_markup(hd_label)
 
     def _init_ui(self):
         # Disk cache combo
         values = [[None, _("Hypervisor default")]]
-        for m in virtinst.DeviceDisk.CACHE_MODES:
-            values.append([m, m])
+        values.extend([m, m] for m in virtinst.DeviceDisk.CACHE_MODES)
         uiutil.build_simple_combo(
                 self.widget("disk-cache"), values, sort=False)
 
         # Discard combo
         values = [[None, _("Hypervisor default")]]
-        for m in virtinst.DeviceDisk.DISCARD_MODES:
-            values.append([m, m])
+        values.extend([m, m] for m in virtinst.DeviceDisk.DISCARD_MODES)
         uiutil.build_simple_combo(
                 self.widget("disk-discard"), values, sort=False)
 
@@ -147,11 +143,14 @@ class vmmAddStorage(vmmGObjectUI):
 
         errmsg = _("Errors were encountered changing permissions for the "
                    "following directories:")
-        details = ""
-        for p, error in errors.items():
-            if p in broken_paths:
-                details += "%s : %s\n" % (p, error)
-        details += "\nIt is very likely the VM will fail to start up."
+        details = (
+            "".join(
+                "%s : %s\n" % (p, error)
+                for p, error in errors.items()
+                if p in broken_paths
+            )
+            + "\nIt is very likely the VM will fail to start up."
+        )
 
         log.debug("Permission errors:\n%s", details)
 
@@ -269,9 +268,7 @@ class vmmAddStorage(vmmGObjectUI):
         disk.validate()
         path = disk.get_source_path()
 
-        # Disk collision
-        names = disk.is_conflict_disk()
-        if names:
+        if names := disk.is_conflict_disk():
             msg = (_("Disk '%(path)s' is already in use by other "
                    "guests %(names)s") %
                    {"path": path, "names": names})

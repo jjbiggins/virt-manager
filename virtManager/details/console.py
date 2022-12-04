@@ -67,8 +67,7 @@ class _TimedRevealer(vmmGObject):
     def _enter_notify(self, ignore1, ignore2):
         x, y = self._ebox.get_pointer()
         alloc = self._ebox.get_allocation()
-        entered = bool(x >= 0 and y >= 0 and
-                       x < alloc.width and y < alloc.height)
+        entered = x >= 0 and y >= 0 and x < alloc.width and y < alloc.height
 
         if not self._in_fullscreen:
             return
@@ -227,7 +226,7 @@ class _ConsoleMenu:
 
             tooltip = None
             if idx > 0:
-                label += " %s" % (idx + 1)
+                label += f" {idx + 1}"
                 tooltip = _("virt-manager does not support more "
                             "than one graphical console")
 
@@ -604,8 +603,7 @@ class vmmConsolePages(vmmGObjectUI):
         self.widget("console-gfx-pages").set_current_page(
                 _GFX_PAGE_UNAVAILABLE)
         if msg:
-            self.widget("console-gfx-unavailable").set_label(
-                    "<b>" + msg + "</b>")
+            self.widget("console-gfx-unavailable").set_label(f"<b>{msg}</b>")
 
     def _activate_vm_unavailable_page(self, msg):
         """
@@ -618,8 +616,7 @@ class vmmConsolePages(vmmGObjectUI):
         self.widget("console-pages").set_current_page(
                 _CONSOLE_PAGE_UNAVAILABLE)
         if msg:
-            self.widget("console-unavailable").set_label(
-                    "<b>" + msg + "</b>")
+            self.widget("console-unavailable").set_label(f"<b>{msg}</b>")
         self._activate_gfx_unavailable_page(msg)
 
     def _activate_auth_page(self, withPassword, withUsername):
@@ -685,8 +682,7 @@ class vmmConsolePages(vmmGObjectUI):
         ginfo = None
         try:
             gdevs = self.vm.xmlobj.devices.graphics
-            gdev = gdevs and gdevs[0] or None
-            if gdev:
+            if gdev := gdevs and gdevs[0] or None:
                 ginfo = ConnectionInfo(self.vm.conn, gdev)
         except Exception as e:  # pragma: no cover
             # We can fail here if VM is destroyed: xen is a bit racy
@@ -724,9 +720,7 @@ class vmmConsolePages(vmmGObjectUI):
                 viewer_class = VNCViewer
             elif ginfo.gtype == "spice":
                 if SPICE_GTK_IMPORT_ERROR:
-                    raise RuntimeError(
-                            "Error opening SPICE console: %s" %
-                            SPICE_GTK_IMPORT_ERROR)
+                    raise RuntimeError(f"Error opening SPICE console: {SPICE_GTK_IMPORT_ERROR}")
                 viewer_class = SpiceViewer
 
             self._viewer = viewer_class(self.vm, ginfo)
@@ -783,7 +777,7 @@ class vmmConsolePages(vmmGObjectUI):
         self._viewer_sync_modifiers()
 
     def _viewer_sync_modifiers(self):
-        serial_has_focus = any([s.has_focus() for s in self._serial_consoles])
+        serial_has_focus = any(s.has_focus() for s in self._serial_consoles)
         viewer_keyboard_grab = (self._viewer and
                 self._viewer.console_has_keyboard_grab())
 
@@ -888,13 +882,8 @@ class vmmConsolePages(vmmGObjectUI):
             return
 
         target_port = dev.get_xml_idx()
-        serial = None
         name = src.get_label()
-        for s in self._serial_consoles:
-            if s.name == name:
-                serial = s
-                break
-
+        serial = next((s for s in self._serial_consoles if s.name == name), None)
         if not serial:
             serial = vmmSerialConsole(self.vm, target_port, name)
             serial.set_focus_callbacks(self._serial_focus_changed_cb,
@@ -929,8 +918,7 @@ class vmmConsolePages(vmmGObjectUI):
             self._show_vm_status_unavailable()
             return
 
-        viewer_initialized = (self._viewer and self._viewer.console_is_open())
-        if viewer_initialized:
+        if viewer_initialized := (self._viewer and self._viewer.console_is_open()):
             return
 
         cpage = self.widget("console-pages").get_current_page()

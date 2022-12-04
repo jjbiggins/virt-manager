@@ -74,15 +74,15 @@ class _vmmConnectAuth(vmmGObjectUI):
                     libvirt.VIR_CRED_PASSPHRASE,
                     libvirt.VIR_CRED_NOECHOPROMPT]
             if not prompt:  # pragma: no cover
-                raise RuntimeError("No prompt for auth credtype=%s" % credtype)
+                raise RuntimeError(f"No prompt for auth credtype={credtype}")
 
             prompt += ": "
-            label = self.widget("label%s" % (idx + 1))
-            entry = self.widget("entry%s" % (idx + 1))
+            label = self.widget(f"label{idx + 1}")
+            entry = self.widget(f"entry{idx + 1}")
             uiutil.set_grid_row_visible(label, True)
             label.set_text(prompt)
             entry.set_visibility(not noecho)
-            entry.get_accessible().set_name(prompt + " entry")
+            entry.get_accessible().set_name(f"{prompt} entry")
 
     def run(self):
         self.topwin.show()
@@ -169,18 +169,17 @@ def connect_error(conn, errmsg, tb, warnconsole):
                   " - A Xen host kernel was booted\n"
                   " - The Xen service has been started")
 
-    else:
-        if warnconsole:
-            hint += _("Could not detect a local session: if you are "
-                      "running virt-manager over ssh -X or VNC, you "
-                      "may not be able to connect to libvirt as a "
-                      "regular user. Try running as root.")
-            show_errmsg = False
-        elif re.search(r"libvirt-sock", tb):  # pragma: no cover
-            hint += _("Verify that the 'libvirtd' daemon is running.")
-            show_errmsg = False
+    elif warnconsole:
+        hint += _("Could not detect a local session: if you are "
+                  "running virt-manager over ssh -X or VNC, you "
+                  "may not be able to connect to libvirt as a "
+                  "regular user. Try running as root.")
+        show_errmsg = False
+    elif re.search(r"libvirt-sock", tb):  # pragma: no cover
+        hint += _("Verify that the 'libvirtd' daemon is running.")
+        show_errmsg = False
 
-    msg = _("Unable to connect to libvirt %s." % conn.get_uri())
+    msg = _(f"Unable to connect to libvirt {conn.get_uri()}.")
     if show_errmsg:
         msg += "\n\n%s" % errmsg
     if hint:

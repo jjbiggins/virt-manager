@@ -35,12 +35,12 @@ def testCreateVolDefault(app):
     finish.click()
 
     # Delete it, clicking 'No' first
-    volcell = vollist.find(newname + ".qcow2")
+    volcell = vollist.find(f"{newname}.qcow2")
     volcell.bring_on_screen()
     hostwin.find("vol-refresh", "push button").click()
     hostwin.find("vol-delete", "push button").click()
     app.click_alert_button("permanently delete the volume", "No")
-    volcell = vollist.find(newname + ".qcow2")
+    volcell = vollist.find(f"{newname}.qcow2")
     hostwin.find("vol-delete", "push button").click()
     app.click_alert_button("permanently delete the volume", "Yes")
     lib.utils.check(lambda: volcell.dead)
@@ -132,8 +132,7 @@ def testCreateVolXMLEditor(app):
     name.set_text(tmpname)
     win.find("XML", "page tab").click()
     xmleditor = win.find("XML editor")
-    newtext = xmleditor.text.replace(
-                    ">%s.qcow2<" % tmpname, ">%s<" % newname)
+    newtext = xmleditor.text.replace(f">{tmpname}.qcow2<", f">{newname}<")
     xmleditor.set_text(newtext)
     finish.click()
     lib.utils.check(lambda: hostwin.active)

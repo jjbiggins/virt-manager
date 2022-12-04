@@ -38,8 +38,9 @@ def _check_function(function, flag, run_args, data):
     # is of the correct type
     if not isinstance(data, classobj):
         raise ValueError(
-            "Passed obj %s with args must be of type %s, was %s" %
-            (data, str(classobj), type(data)))
+            f"Passed obj {data} with args must be of type {str(classobj)}, was {type(data)}"
+        )
+
 
     use_args = run_args
     if flag_tuple:
@@ -201,9 +202,11 @@ class SupportCache:
         Small helper to check if the passed exception is a libvirt error
         with code VIR_ERR_NO_DOMAIN
         """
-        if not isinstance(err, libvirt.libvirtError):
-            return False  # pragma: no cover
-        return err.get_error_code() == libvirt.VIR_ERR_NO_DOMAIN
+        return (
+            err.get_error_code() == libvirt.VIR_ERR_NO_DOMAIN
+            if isinstance(err, libvirt.libvirtError)
+            else False
+        )
 
     @staticmethod
     def is_error_nosupport(err):
@@ -214,14 +217,12 @@ class SupportCache:
         :param err: Exception raised from command call
         :returns: True if command isn't supported, False if we can't determine
         """
-        if not isinstance(err, libvirt.libvirtError):
-            return False  # pragma: no cover
-
-        if (err.get_error_code() == libvirt.VIR_ERR_RPC or
-            err.get_error_code() == libvirt.VIR_ERR_NO_SUPPORT):
-            return True
-
-        return False  # pragma: no cover
+        return (
+            err.get_error_code()
+            in [libvirt.VIR_ERR_RPC, libvirt.VIR_ERR_NO_SUPPORT]
+            if isinstance(err, libvirt.libvirtError)
+            else False
+        )
 
 
     def __init__(self, virtconn):

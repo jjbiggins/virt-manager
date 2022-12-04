@@ -125,9 +125,7 @@ class _XMLBase(object):
 
     def get_xml(self, xpath):
         node = self._find(xpath)
-        if node is None:
-            return ""
-        return self._sanitize_xml(self._node_tostring(node))
+        return "" if node is None else self._sanitize_xml(self._node_tostring(node))
 
     def get_xpath_content(self, xpath, is_bool):
         node = self._find(xpath)
@@ -227,12 +225,11 @@ class _XMLBase(object):
         parentxpath = "."
         parentnode = self._find(parentxpath)
         if not parentnode:
-            raise xmlutil.DevError(
-                    "Did not find XML root node for xpath=%s" % fullxpath)
+            raise xmlutil.DevError(f"Did not find XML root node for xpath={fullxpath}")
 
         for xpathseg in xpathobj.segments[1:]:
             oldxpath = parentxpath
-            parentxpath += "/%s" % xpathseg.fullsegment
+            parentxpath += f"/{xpathseg.fullsegment}"
             tmpnode = self._find(parentxpath)
             if tmpnode is not None:
                 # xpath node already exists, nothing to create yet
@@ -319,7 +316,7 @@ class _Libxml2API(_XMLBase):
         except Exception as e:
             log.debug("fullxpath=%s xpath=%s eval failed",
                     fullxpath, xpath, exc_info=True)
-            raise RuntimeError("%s %s" % (fullxpath, str(e))) from None
+            raise RuntimeError(f"{fullxpath} {str(e)}") from None
         return (node and node[0] or None)
 
     def count(self, xpath):
@@ -338,13 +335,11 @@ class _Libxml2API(_XMLBase):
         node.setContent(setval)
 
     def _node_get_property(self, node, propname):
-        prop = node.hasProp(propname)
-        if prop:
+        if prop := node.hasProp(propname):
             return prop.content
     def _node_set_property(self, node, propname, setval):
         if setval is None:
-            prop = node.hasProp(propname)
-            if prop:
+            if prop := node.hasProp(propname):
                 prop.unlinkNode()
                 prop.freeNode()
         else:
@@ -371,8 +366,7 @@ class _Libxml2API(_XMLBase):
         return newnode
 
     def node_clear(self, xpath):
-        node = self._find(xpath)
-        if node:
+        if node := self._find(xpath):
             propnames = [p.name for p in (node.properties or [])]
             for p in propnames:
                 node.unsetProp(p)
@@ -395,7 +389,7 @@ class _Libxml2API(_XMLBase):
 
         node.unlinkNode()
         node.freeNode()
-        if all([node_is_text(n) for n in parentnode.children]):
+        if all(node_is_text(n) for n in parentnode.children):
             parentnode.setContent(None)
 
     def _node_add_child(self, parentxpath, parentnode, newnode):

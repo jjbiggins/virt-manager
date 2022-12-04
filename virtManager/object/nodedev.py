@@ -16,8 +16,7 @@ def _usb_pretty_name(xmlobj):
     product = product or str(xmlobj.product_id or "")
     vendor = vendor or str(xmlobj.vendor_id or "")
     busstr = "%.3d:%.3d" % (int(xmlobj.bus), int(xmlobj.device))
-    desc = "%s %s %s" % (busstr, vendor, product)
-    return desc
+    return f"{busstr} {vendor} {product}"
 
 
 def _pretty_name(xmlobj):
@@ -29,8 +28,7 @@ def _pretty_name(xmlobj):
                                         int(xmlobj.bus),
                                         int(xmlobj.slot),
                                         int(xmlobj.function))
-        return "%s %s %s" % (devstr,
-                xmlobj.vendor_name, xmlobj.product_name)
+        return f"{devstr} {xmlobj.vendor_name} {xmlobj.product_name}"
     if xmlobj.device_type == "usb_device":
         return _usb_pretty_name(xmlobj)
 
@@ -44,7 +42,7 @@ def _pretty_name(xmlobj):
         if parent:
             pretty_parent = _pretty_name(parent)
 
-        return "%s (%s)" % (pretty_parent, xmlobj.drm_type)
+        return f"{pretty_parent} ({xmlobj.drm_type})"
 
     return xmlobj.name  # pragma: no cover
 
