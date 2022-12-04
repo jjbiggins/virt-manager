@@ -131,10 +131,11 @@ class Viewer(vmmGObject):
             # fixed: https://bugzilla.redhat.com/show_bug.cgi?id=1334071
             return None  # pragma: no cover
 
-        if not self._vm.conn.support.domain_open_graphics():
-            return None
-
-        return self._vm.open_graphics_fd()
+        return (
+            self._vm.open_graphics_fd()
+            if self._vm.conn.support.domain_open_graphics()
+            else None
+        )
 
     def _open(self):
         if self._ginfo.bad_config():
@@ -235,14 +236,11 @@ class Viewer(vmmGObject):
         return self._get_grab_keys()
 
     def console_get_desktop_resolution(self):
-        ret = self._get_desktop_resolution()
-        if not ret:
+        if ret := self._get_desktop_resolution():
+                # Don't pass on bogus resolutions
+            return None if (ret[0] == 0) or (ret[1] == 0) else ret
+        else:
             return ret  # pragma: no cover
-
-        # Don't pass on bogus resolutions
-        if (ret[0] == 0) or (ret[1] == 0):
-            return None
-        return ret
 
     def console_get_scaling(self):
         return self._get_scaling()
@@ -334,10 +332,7 @@ class VNCViewer(Viewer):
         self.emit("auth-error", msg, True)
 
     def _auth_credential(self, src_ignore, credList):
-        values = []
-        for idx in range(int(credList.n_values)):
-            values.append(credList.get_nth(idx))
-
+        values = [credList.get_nth(idx) for idx in range(int(credList.n_values))]
         if self.config.CLITestOptions.fake_vnc_username:
             values.append(GtkVnc.DisplayCredential.USERNAME)
 
@@ -542,8 +537,7 @@ class SpiceViewer(Viewer):
                     self._usbdev_manager, "device-error",
                     self._usbdev_redirect_error)
 
-            autoredir = self.config.get_auto_usbredir()
-            if autoredir:
+            if autoredir := self.config.get_auto_usbredir():
                 gtk_session.set_property("auto-usbredir", True)
         except Exception:  # pragma: no cover
             self._usbdev_manager = None
@@ -570,19 +564,13 @@ class SpiceViewer(Viewer):
                     "password is already set. Assuming authentication failed.")
                 self.emit("auth-error", channel.get_error().message, False)
         elif "ERROR" in str(event):
-            # SpiceClientGLib.ChannelEvent.ERROR_CONNECT
-            # SpiceClientGLib.ChannelEvent.ERROR_IO
-            # SpiceClientGLib.ChannelEvent.ERROR_LINK
-            # SpiceClientGLib.ChannelEvent.ERROR_TLS
-            error = None
-            if channel.get_error():
-                error = channel.get_error().message
+            error = channel.get_error().message if channel.get_error() else None
             log.debug("Spice channel event=%s message=%s", event, error)
 
             msg = _("Encountered SPICE %(error-name)s") % {
                 "error-name": event.value_nick}
             if error:
-                msg += ": %s" % error
+                msg += f": {error}"
             self._emit_disconnected(msg)
 
     def _fd_channel_event_cb(self, channel, event):
@@ -698,15 +686,21 @@ class SpiceViewer(Viewer):
                                       SpiceClientGtk.DisplayKeyEvent.CLICK)
 
     def _get_desktop_resolution(self):
-        if not self._display_channel:
-            return None  # pragma: no cover
-        return self._display_channel.get_properties("width", "height")
+        return (
+            self._display_channel.get_properties("width", "height")
+            if self._display_channel
+            else None
+        )
 
     def _has_agent(self):
-        if not self._main_channel:
-            return False  # pragma: no cover
-        return (self._main_channel.get_property("agent-connected") or
-                self.config.CLITestOptions.spice_agent)
+        return (
+            (
+                self._main_channel.get_property("agent-connected")
+                or self.config.CLITestOptions.spice_agent
+            )
+            if self._main_channel
+            else False
+        )
 
     def _open_host(self):
         host, port, tlsport = self._ginfo.get_conn_host()
@@ -747,9 +741,7 @@ class SpiceViewer(Viewer):
         if self._display:
             self._display.set_property("resize-guest", val)
     def _get_resizeguest(self):
-        if self._display:
-            return self._display.get_property("resize-guest")
-        return False  # pragma: no cover
+        return self._display.get_property("resize-guest") if self._display else False
     def _get_resizeguest_warning(self):
         if not self._has_agent():
             return _("Guest agent is not available.")
@@ -773,7 +765,7 @@ class SpiceViewer(Viewer):
         if not self._spice_session or not self._usbdev_manager:
             return False  # pragma: no cover
 
-        for c in self._spice_session.get_channels():
-            if c.__class__ is SpiceClientGLib.UsbredirChannel:
-                return True
-        return False
+        return any(
+            c.__class__ is SpiceClientGLib.UsbredirChannel
+            for c in self._spice_session.get_channels()
+        )

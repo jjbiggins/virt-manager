@@ -45,7 +45,7 @@ def test_misc():
 
     # Hit fakuuri validation error, for old style opts
     with pytest.raises(RuntimeError):
-        cli.getConnection(fakeuri + ",qemu")
+        cli.getConnection(f"{fakeuri},qemu")
 
 
 def test_default_uri(monkeypatch):
@@ -70,7 +70,7 @@ def test_poll():
     assert len(master) == 1
     assert master[0].name() == "default"
 
-    objmap = dict((obj.name(), obj) for obj in master)
+    objmap = {obj.name(): obj for obj in master}
     gone, new, master = pollhelpers.fetch_nets(conn, objmap, build_cb)
     assert len(gone) == 0
     assert len(new) == 0
@@ -82,7 +82,7 @@ def test_poll():
         poolxml = StoragePool(conn)
         poolxml.type = "dir"
         poolxml.name = name
-        poolxml.target_path = "/tmp/foo/bar/baz/%s" % name
+        poolxml.target_path = f"/tmp/foo/bar/baz/{name}"
         return poolxml.install(create=create)
 
     poolobj1 = makepool("conntest1", False)

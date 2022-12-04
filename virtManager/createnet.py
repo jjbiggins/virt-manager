@@ -121,6 +121,7 @@ class vmmCreateNetwork(vmmGObjectUI):
         def cb(n):
             return generatename.check_libvirt_collision(
                 self.conn.get_backend().networkLookupByName, n)
+
         default_name = generatename.generate_name(basename, cb)
         self.widget("net-name").set_text(default_name)
 
@@ -162,7 +163,7 @@ class vmmCreateNetwork(vmmGObjectUI):
                 if pcidev.xmlobj.name != netdev.xmlobj.parent:
                     continue
                 ifname = netdev.xmlobj.interface
-                devprettyname = "%s (%s)" % (ifname, devdesc)
+                devprettyname = f"{ifname} ({devdesc})"
                 devprettynames.append(devprettyname)
                 ifnames.append(ifname)
                 break
@@ -226,9 +227,7 @@ class vmmCreateNetwork(vmmGObjectUI):
 
         manual = bool(uiutil.get_list_selection(
                     self.widget("net-forward-device")))
-        if not manual:
-            return None
-        return self.widget("net-forward-manual").get_text()
+        return self.widget("net-forward-manual").get_text() if manual else None
 
 
     #############

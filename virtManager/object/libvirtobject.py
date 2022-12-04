@@ -74,8 +74,7 @@ class vmmLibvirtObject(vmmGObject):
             name = self.get_name()
         except Exception:
             name = ""
-        return "<%s name=%s id=%s>" % (
-                self.__class__.__name__, name, hex(id(self)))
+        return f"<{self.__class__.__name__} name={name} id={hex(id(self))}>"
 
     def _cleanup(self):
         self._backend = None
@@ -204,9 +203,7 @@ class vmmLibvirtObject(vmmGObject):
         return self._get_status() == self._STATUS_ACTIVE
 
     def run_status(self):
-        if self.is_active():
-            return _("Active")
-        return _("Inactive")
+        return _("Active") if self.is_active() else _("Inactive")
 
     def _refresh_status(self, newstatus=None, cansignal=True):
         """
@@ -259,8 +256,7 @@ class vmmLibvirtObject(vmmGObject):
             # If we hit an exception here, it's often that the object
             # disappeared, so request the poll loop to be updated
             log.debug("Error refreshing %s from events: %s", self, e)
-            poll_param = self._conn_tick_poll_param()
-            if poll_param:
+            if poll_param := self._conn_tick_poll_param():
                 kwargs = {"force": True, poll_param: True}
                 log.debug("Scheduling priority tick with: %s", kwargs)
                 self.conn.schedule_priority_tick(**kwargs)
@@ -284,10 +280,7 @@ class vmmLibvirtObject(vmmGObject):
         :param nosignal: If true, don't send state-changed. Used by
             callers that are going to send it anyways.
         """
-        origxml = None
-        if self._xmlobj:
-            origxml = self._xmlobj.get_xml()
-
+        origxml = self._xmlobj.get_xml() if self._xmlobj else None
         self._invalidate_xml()
         active_xml = self._XMLDesc(self._active_xml_flags)
         self._xmlobj = self._parseclass(self.conn.get_backend(),

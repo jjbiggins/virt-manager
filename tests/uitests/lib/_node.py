@@ -47,9 +47,7 @@ class _FuzzyPredicate(dogtail.predicate.Predicate):
     def makeScriptVariableName(self):
         return
     def describeSearchResult(self, node=None):
-        if not node:
-            return ""
-        return node.node_string()
+        return node.node_string() if node else ""
 
     def satisfiedByNode(self, node):
         """
@@ -59,10 +57,7 @@ class _FuzzyPredicate(dogtail.predicate.Predicate):
             if self._roleName and not self._role_pattern.match(node.roleName):
                 return
 
-            labeller = ""
-            if node.labeller:
-                labeller = node.labeller.text
-
+            labeller = node.labeller.text if node.labeller else ""
             if (self._name and
                     not self._name_pattern.match(node.name) and
                     not self._name_pattern.match(labeller)):
@@ -70,13 +65,14 @@ class _FuzzyPredicate(dogtail.predicate.Predicate):
             if (self._labeller_text and
                     not self._labeller_pattern.match(labeller)):
                 return
-            if (self._focusable and not
-                    (node.focusable and
-                     node.onscreen and
-                     node.sensitive and
-                     node.roleName not in ["page tab list", "radio button"])):
-                return False
-            return True
+            return bool(
+                not self._focusable
+                or node.focusable
+                and node.onscreen
+                and node.sensitive
+                and node.roleName not in ["page tab list", "radio button"]
+            )
+
         except Exception as e:
             log.debug(
                     "got predicate exception name=%s role=%s labeller=%s: %s",
@@ -326,16 +322,9 @@ class _VMMDogtailNode(dogtail.tree.Node):
         """
         Search root for any widget that contains the passed name/role strings.
         """
-        name_pattern = None
-        role_pattern = None
-        labeller_pattern = None
-        if name:
-            name_pattern = ".*%s.*" % name
-        if roleName:
-            role_pattern = ".*%s.*" % roleName
-        if labeller_text:
-            labeller_pattern = ".*%s.*" % labeller_text
-
+        name_pattern = f".*{name}.*" if name else None
+        role_pattern = f".*{roleName}.*" if roleName else None
+        labeller_pattern = f".*{labeller_text}.*" if labeller_text else None
         return self.find(name_pattern, role_pattern, labeller_pattern)
 
 
@@ -378,7 +367,7 @@ class _VMMDogtailNode(dogtail.tree.Node):
             try:
                 strs.append(node.node_string())
             except Exception as e:
-                strs.append("got exception: %s" % e)
+                strs.append(f"got exception: {e}")
 
         self.findChildren(_walk, isLambda=True)
         return "\n".join(strs)

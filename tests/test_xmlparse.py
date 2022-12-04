@@ -10,7 +10,7 @@ import virtinst
 from tests import utils
 
 
-DATADIR = utils.DATADIR + "/xmlparse/"
+DATADIR = f"{utils.DATADIR}/xmlparse/"
 
 
 ####################
@@ -58,7 +58,7 @@ def _gen_outfile_path(basename):
 
 
 def _get_test_content(conn, basename):
-    infile = DATADIR + "%s-in.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
     outfile = _gen_outfile_path(basename)
     guest = virtinst.Guest(conn, parsexml=open(infile).read())
     return guest, outfile
@@ -228,8 +228,8 @@ def testAlterGuest():
 
 def testAlterCpuMode():
     conn = utils.URIs.open_testdefault_cached()
-    xml = open(DATADIR + "change-cpumode-in.xml").read()
-    outfile = DATADIR + "change-cpumode-out.xml"
+    xml = open(f"{DATADIR}change-cpumode-in.xml").read()
+    outfile = f"{DATADIR}change-cpumode-out.xml"
     conn = utils.URIs.openconn(utils.URIs.kvm_x86)
     guest = virtinst.Guest(conn, xml)
     check = _make_checker(guest.cpu)
@@ -265,7 +265,7 @@ def testAlterCpuMode():
     emptyconn = utils.URIs.open_testdefault_cached()
     guest = virtinst.Guest(emptyconn, xml)
     guest.cpu.check_security_features(guest)
-    assert guest.cpu.secure is False
+    assert not guest.cpu.secure
 
 
 def testAlterDisk():
@@ -554,8 +554,8 @@ def testAlterNics():
 def testQEMUXMLNS():
     kvmconn = utils.URIs.open_kvm()
     basename = "change-xmlns-qemu"
-    infile = DATADIR + "%s-in.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     guest = virtinst.Guest(kvmconn, parsexml=open(infile).read())
 
     check = _make_checker(guest.xmlns_qemu.args[0])
@@ -689,8 +689,8 @@ def testDiskChangeBus():
 def testChangeSnapshot():
     conn = utils.URIs.open_testdefault_cached()
     basename = "change-snapshot"
-    infile = DATADIR + "%s-in.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     snap = virtinst.DomainSnapshot(conn, parsexml=open(infile).read())
 
     check = _make_checker(snap)
@@ -716,8 +716,8 @@ def testChangeSnapshot():
 def testFSPool():
     conn = utils.URIs.open_testdefault_cached()
     basename = "pool-fs"
-    infile = DATADIR + "%s.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     pool = virtinst.StoragePool(conn, parsexml=open(infile).read())
 
     check = _make_checker(pool)
@@ -741,8 +741,8 @@ def testFSPool():
 def testISCSIPool():
     conn = utils.URIs.open_testdefault_cached()
     basename = "pool-iscsi"
-    infile = utils.DATADIR + "/storage/%s.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{utils.DATADIR}/storage/{basename}.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     pool = virtinst.StoragePool(conn, parsexml=open(infile).read())
 
     check = _make_checker(pool)
@@ -757,8 +757,8 @@ def testISCSIPool():
 def testGlusterPool():
     conn = utils.URIs.open_testdefault_cached()
     basename = "pool-gluster"
-    infile = utils.DATADIR + "/storage/%s.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{utils.DATADIR}/storage/{basename}.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     pool = virtinst.StoragePool(conn, parsexml=open(infile).read())
 
     check = _make_checker(pool)
@@ -773,8 +773,8 @@ def testGlusterPool():
 def testRBDPool():
     conn = utils.URIs.open_testdefault_cached()
     basename = "pool-rbd"
-    infile = DATADIR + "%s.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     pool = virtinst.StoragePool(conn, parsexml=open(infile).read())
 
     check = _make_checker(pool.hosts[0])
@@ -797,8 +797,8 @@ def testRBDPool():
 def testVol():
     conn = utils.URIs.open_testdefault_cached()
     basename = "pool-dir-vol"
-    infile = DATADIR + "%s-in.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     vol = virtinst.StorageVolume(conn, parsexml=open(infile).read())
 
     check = _make_checker(vol)
@@ -828,8 +828,8 @@ def testVol():
 def testNetMulti():
     conn = utils.URIs.open_testdefault_cached()
     basename = "network-multi"
-    infile = DATADIR + "%s-in.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     net = virtinst.Network(conn, parsexml=open(infile).read())
 
     check = _make_checker(net)
@@ -892,8 +892,8 @@ def testNetMulti():
 def testNetOpen():
     conn = utils.URIs.open_testdefault_cached()
     basename = "network-open"
-    infile = DATADIR + "%s-in.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     net = virtinst.Network(conn, parsexml=open(infile).read())
 
     check = _make_checker(net)
@@ -920,8 +920,8 @@ def testNetOpen():
 def testNetVfPool():
     conn = utils.URIs.open_testdefault_cached()
     basename = "network-vf-pool"
-    infile = DATADIR + "%s-in.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     net = virtinst.Network(conn, parsexml=open(infile).read())
 
     check = _make_checker(net)
@@ -947,8 +947,8 @@ def testCPUUnknownClear():
     # Make sure .clear() even removes XML elements we don't know about
     kvmconn = utils.URIs.open_kvm()
     basename = "clear-cpu-unknown-vals"
-    infile = DATADIR + "%s-in.xml" % basename
-    outfile = DATADIR + "%s-out.xml" % basename
+    infile = f"{DATADIR}{basename}-in.xml"
+    outfile = f"{DATADIR}{basename}-out.xml"
     guest = virtinst.Guest(kvmconn, parsexml=open(infile).read())
 
     guest.cpu.set_special_mode(guest, "host-model-only")
@@ -959,8 +959,8 @@ def testCPUUnknownClear():
 def testDomainRoundtrip():
     conn = utils.URIs.open_testdefault_cached()
     # Make sure our XML engine doesn't mangle non-libvirt XML bits
-    infile = DATADIR + "domain-roundtrip.xml"
-    outfile = DATADIR + "domain-roundtrip.xml"
+    infile = f"{DATADIR}domain-roundtrip.xml"
+    outfile = f"{DATADIR}domain-roundtrip.xml"
     guest = virtinst.Guest(conn, parsexml=open(infile).read())
 
     utils.diff_compare(guest.get_xml(), outfile)
@@ -1045,8 +1045,8 @@ def testXMLBuilderCoverage():
 
 def testReplaceChildParse():
     conn = utils.URIs.open_testdefault_cached()
-    buildfile = DATADIR + "replace-child-build.xml"
-    parsefile = DATADIR + "replace-child-parse.xml"
+    buildfile = f"{DATADIR}replace-child-build.xml"
+    parsefile = f"{DATADIR}replace-child-parse.xml"
 
     def mkdisk(target):
         disk = virtinst.DeviceDisk(conn)
@@ -1101,14 +1101,12 @@ def testGuestXMLDeviceMatch():
         devxml = srcdev.get_xml()
         newdev = srcdev.__class__(conn, devxml)
         if srcdev != guest.find_device(newdev):
-            raise AssertionError("guest.find_device failed for dev=%s" %
-                    newdev)
+            raise AssertionError(f"guest.find_device failed for dev={newdev}")
 
     # Ensure devices from another parsed XML doc compare correctly
     for srcdev in guest.devices.get_all():
         if not guest2.find_device(srcdev):
-            raise AssertionError("guest.find_device failed for dev=%s" %
-                    srcdev)
+            raise AssertionError(f"guest.find_device failed for dev={srcdev}")
 
 
 def testControllerAttachedDevices():
@@ -1116,7 +1114,7 @@ def testControllerAttachedDevices():
     Test DeviceController.get_attached_devices
     """
     conn = utils.URIs.open_testdefault_cached()
-    xml = open(DATADIR + "controller-attached-devices.xml").read()
+    xml = open(f"{DATADIR}controller-attached-devices.xml").read()
     guest = virtinst.Guest(conn, xml)
 
     # virtio-serial path

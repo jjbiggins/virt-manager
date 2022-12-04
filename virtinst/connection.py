@@ -123,7 +123,7 @@ class VirtinstConnection(object):
             major = int(num / 1000000)
             minor = int(num / 1000) % 1000
             micro = num % 1000
-            return "%s.%s.%s" % (major, minor, micro)
+            return f"{major}.{minor}.{micro}"
 
         log.debug("libvirt URI versions library=%s driver=%s hypervisor=%s",
                   format_version(self.local_libvirt_version()),
@@ -136,9 +136,7 @@ class VirtinstConnection(object):
     ##############
 
     def close(self):
-        ret = 0
-        if self._libvirtconn:
-            ret = self._libvirtconn.close()
+        ret = self._libvirtconn.close() if self._libvirtconn else 0
         self._libvirtconn = None
         self._uri = None
         self._fetch_cache = {}
@@ -388,9 +386,7 @@ class VirtinstConnection(object):
     def is_privileged(self):
         if self.get_uri_path() == "/session":
             return False
-        if self.get_uri_path() == "/embed":
-            return os.getuid() == 0
-        return True
+        return os.getuid() == 0 if self.get_uri_path() == "/embed" else True
     def is_unprivileged(self):
         return not self.is_privileged()
 

@@ -26,10 +26,10 @@ HV_CUSTOM) = range(7)
 
 
 def _default_uri():  # pragma: no cover
-    if os.path.exists('/var/lib/xen'):
-        if (os.path.exists('/dev/xen/evtchn') or
-            os.path.exists("/proc/xen")):
-            return 'xen:///'
+    if os.path.exists('/var/lib/xen') and (
+        (os.path.exists('/dev/xen/evtchn') or os.path.exists("/proc/xen"))
+    ):
+        return 'xen:///'
 
     if (os.path.exists("/usr/bin/qemu") or
         os.path.exists("/usr/bin/qemu-kvm") or
@@ -203,7 +203,7 @@ class vmmCreateConn(vmmGObjectUI):
         hvstr = ""
         if hv == HV_XEN:
             hvstr = "xen"
-        elif hv == HV_QEMU or hv == HV_QEMU_SESSION:
+        elif hv in [HV_QEMU, HV_QEMU_SESSION]:
             hvstr = "qemu"
         elif hv == HV_BHYVE:
             hvstr = "bhyve"
@@ -214,17 +214,13 @@ class vmmCreateConn(vmmGObjectUI):
 
         addrstr = ""
         if user:
-            addrstr += urllib.parse.quote(user) + "@"
+            addrstr += f"{urllib.parse.quote(user)}@"
 
         if host.count(":") > 1:
-            host = "[%s]" % host
+            host = f"[{host}]"
         addrstr += host
 
-        if is_remote:
-            hoststr = "+ssh://" + addrstr + "/"
-        else:
-            hoststr = ":///"
-
+        hoststr = f"+ssh://{addrstr}/" if is_remote else ":///"
         uri = hvstr + hoststr
         if hv in (HV_QEMU, HV_BHYVE, HV_VZ):
             uri += "system"

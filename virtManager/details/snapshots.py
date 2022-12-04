@@ -238,18 +238,18 @@ class vmmSnapshotNew(vmmGObjectUI):
 
         try:
             cachedir = self.vm.get_cache_dir()
-            basesn = os.path.join(cachedir, "snap-screenshot-%s" % name)
+            basesn = os.path.join(cachedir, f"snap-screenshot-{name}")
 
             # Remove any pre-existing screenshots so we don't show stale data
             for ext in list(mimemap.values()):
-                p = basesn + "." + ext
-                if os.path.exists(basesn + "." + ext):
+                p = f"{basesn}.{ext}"
+                if os.path.exists(f"{basesn}.{ext}"):
                     os.unlink(p)
 
             if not mime or not sndata:
                 return
 
-            filename = basesn + "." + _mime_to_ext(mime)
+            filename = f"{basesn}.{_mime_to_ext(mime)}"
             log.debug("Writing screenshot to %s", filename)
             open(filename, "wb").write(sndata)
         except Exception:  # pragma: no cover
@@ -445,12 +445,12 @@ class vmmSnapshotPage(vmmGObjectUI):
             state = snap.run_status()
             if snap.is_external():
                 has_external = True
-                sortname = "3%s" % name
+                sortname = f"3{name}"
                 label = _("%(vm)s\n<span size='small'>VM State: "
                           "%(state)s (External)</span>")
             else:
                 has_internal = True
-                sortname = "1%s" % name
+                sortname = f"1{name}"
                 label = _("%(vm)s\n<span size='small'>VM State: "
                           "%(state)s</span>")
 
@@ -484,16 +484,16 @@ class vmmSnapshotPage(vmmGObjectUI):
             return
 
         cache_dir = self.vm.get_cache_dir()
-        basename = os.path.join(cache_dir, "snap-screenshot-%s" % name)
-        files = glob.glob(basename + ".*")
+        basename = os.path.join(cache_dir, f"snap-screenshot-{name}")
+        files = glob.glob(f"{basename}.*")
         if not files:
             return
 
         filename = files[0]
-        mime = _mime_to_ext(os.path.splitext(filename)[1][1:], reverse=True)
-        if not mime:
+        if mime := _mime_to_ext(os.path.splitext(filename)[1][1:], reverse=True):
+            return _make_screenshot_pixbuf(mime, open(filename, "rb").read())
+        else:
             return  # pragma: no cover
-        return _make_screenshot_pixbuf(mime, open(filename, "rb").read())
 
     def _set_snapshot_state(self, snap=None):
         self.widget("snapshot-notebook").set_current_page(0)
@@ -664,19 +664,22 @@ class vmmSnapshotPage(vmmGObjectUI):
             return
 
         if self.vm.has_managed_save() and not snap.has_run_state():
-            result = self.err.ok_cancel(
+            if result := self.err.ok_cancel(
                 _("Saved state will be removed to avoid filesystem corruption"),
-                _("Snapshot '%s' contains only disk and no memory state. "
-                  "Restoring the snapshot would leave the existing saved state "
-                  "in place, effectively switching a disk underneath a running "
-                  "system. Running the domain afterwards would likely result in "
-                  "extensive filesystem corruption. Therefore the saved state "
-                  "will be removed before restoring the snapshot."
-                  ) % snap.get_name())
-            if not result:
-                return
-            self.vm.remove_saved_image()
+                _(
+                    "Snapshot '%s' contains only disk and no memory state. "
+                    "Restoring the snapshot would leave the existing saved state "
+                    "in place, effectively switching a disk underneath a running "
+                    "system. Running the domain afterwards would likely result in "
+                    "extensive filesystem corruption. Therefore the saved state "
+                    "will be removed before restoring the snapshot."
+                )
+                % snap.get_name(),
+            ):
+                self.vm.remove_saved_image()
 
+            else:
+                return
         log.debug("Running snapshot '%s'", snap.get_name())
         vmmAsyncJob.simple_async(self.vm.revert_to_snapshot,
                             [snap], self,

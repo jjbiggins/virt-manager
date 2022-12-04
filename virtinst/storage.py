@@ -143,8 +143,7 @@ class StoragePool(_StorageObject):
         Attempt to lookup the 'default' pool, but if it doesn't exist,
         create it
         """
-        poolxml = StoragePool.lookup_default_pool(conn)
-        if poolxml:
+        if poolxml := StoragePool.lookup_default_pool(conn):
             return poolxml
 
         try:
@@ -174,9 +173,7 @@ class StoragePool(_StorageObject):
         :returns: virStoragePool object if found, None otherwise
         """
         poolxml = _lookup_poolxml_by_path(conn, path)
-        if not poolxml:
-            return None
-        return conn.storagePoolLookupByName(poolxml.name)
+        return conn.storagePoolLookupByName(poolxml.name) if poolxml else None
 
     @staticmethod
     def find_free_name(conn, basename, **kwargs):
@@ -225,19 +222,16 @@ class StoragePool(_StorageObject):
     def default_target_path(self):
         if not self.supports_target_path():
             return None
-        if (self.type == self.TYPE_DIR or
-            self.type == self.TYPE_NETFS or
-            self.type == self.TYPE_FS):
+        if self.type in [self.TYPE_DIR, self.TYPE_NETFS, self.TYPE_FS]:
             return os.path.join(
                     _preferred_default_pool_path(self.conn), self.name)
-        if self.type == self.TYPE_ISCSI or self.type == self.TYPE_SCSI:
+        if self.type in [self.TYPE_ISCSI, self.TYPE_SCSI]:
             return _DEFAULT_SCSI_TARGET
         if self.type == self.TYPE_MPATH:
             return _DEFAULT_MPATH_TARGET
 
     def _type_to_source_prop(self):
-        if (self.type == self.TYPE_NETFS or
-            self.type == self.TYPE_GLUSTER):
+        if self.type in [self.TYPE_NETFS, self.TYPE_GLUSTER]:
             return "_source_dir"
         elif self.type == self.TYPE_SCSI:
             return "_source_adapter"
@@ -331,15 +325,19 @@ class StoragePool(_StorageObject):
         return self.type in [self.TYPE_ISCSI]
 
     def get_disk_type(self):
-        if (self.type == StoragePool.TYPE_DISK or
-            self.type == StoragePool.TYPE_LOGICAL or
-            self.type == StoragePool.TYPE_SCSI or
-            self.type == StoragePool.TYPE_MPATH or
-            self.type == StoragePool.TYPE_ZFS):
+        if self.type in [
+            StoragePool.TYPE_DISK,
+            StoragePool.TYPE_LOGICAL,
+            StoragePool.TYPE_SCSI,
+            StoragePool.TYPE_MPATH,
+            StoragePool.TYPE_ZFS,
+        ]:
             return StorageVolume.TYPE_BLOCK
-        if (self.type == StoragePool.TYPE_GLUSTER or
-            self.type == StoragePool.TYPE_RBD or
-            self.type == StoragePool.TYPE_ISCSI):
+        if self.type in [
+            StoragePool.TYPE_GLUSTER,
+            StoragePool.TYPE_RBD,
+            StoragePool.TYPE_ISCSI,
+        ]:
             return StorageVolume.TYPE_NETWORK
         return StorageVolume.TYPE_FILE
 
@@ -451,9 +449,7 @@ class StorageVolume(_StorageObject):
     def get_file_extension_for_format(fmt):
         if not fmt:
             return ""
-        if fmt == "raw":
-            return ".img"
-        return "." + fmt
+        return ".img" if fmt == "raw" else f".{fmt}"
 
     @staticmethod
     def find_free_name(conn, pool_object, basename, collideguest=None, **kwargs):
@@ -634,11 +630,13 @@ class StorageVolume(_StorageObject):
         if self._prop_is_unset("lazy_refcounts") and self.format == "qcow2":
             self.lazy_refcounts = self.conn.support.conn_qcow2_lazy_refcounts()
 
-        if self._pool_xml.type == StoragePool.TYPE_LOGICAL:
-            if self.allocation != self.capacity:
-                log.warning(_("Sparse logical volumes are not supported, "
-                               "setting allocation equal to capacity"))
-                self.allocation = self.capacity
+        if (
+            self._pool_xml.type == StoragePool.TYPE_LOGICAL
+            and self.allocation != self.capacity
+        ):
+            log.warning(_("Sparse logical volumes are not supported, "
+                           "setting allocation equal to capacity"))
+            self.allocation = self.capacity
 
         isfatal, errmsg = self.is_size_conflict()
         if isfatal:

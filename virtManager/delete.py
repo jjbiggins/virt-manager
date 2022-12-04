@@ -76,8 +76,7 @@ class _vmmDeleteBase(vmmGObjectUI):
     ##########################
 
     def _set_vm(self, newvm):
-        oldvm = self.vm
-        if oldvm:
+        if oldvm := self.vm:
             oldvm.conn.disconnect_by_obj(self)
         if newvm:
             newvm.conn.connect("vm-removed", self._vm_removed_cb)
@@ -135,10 +134,12 @@ class _vmmDeleteBase(vmmGObjectUI):
 
         paths = []
         if self.widget("delete-remove-storage").get_active():
-            for row in model:
-                if (not row[STORAGE_ROW_CANT_DELETE] and
-                    row[STORAGE_ROW_CONFIRM]):
-                    paths.append(row[STORAGE_ROW_PATH])
+            paths.extend(
+                row[STORAGE_ROW_PATH]
+                for row in model
+                if (not row[STORAGE_ROW_CANT_DELETE] and row[STORAGE_ROW_CONFIRM])
+            )
+
         return paths
 
     def _delete_finished_cb(self, error, details):
@@ -197,9 +198,9 @@ class _vmmDeleteBase(vmmGObjectUI):
                     }
             details = "".join(traceback.format_exc())
 
-        storage_errstr = ""
-        for errinfo in storage_errors:
-            storage_errstr += "%s\n%s\n" % (errinfo[0], errinfo[1])
+        storage_errstr = "".join(
+            "%s\n%s\n" % (errinfo[0], errinfo[1]) for errinfo in storage_errors
+        )
 
         if not storage_errstr and not details:
             return
@@ -293,11 +294,10 @@ class vmmDeleteDialog(_vmmDeleteBase):
         if paths:
             title = _("Deleting virtual machine '%s' and selected storage "
                       "(this may take a while)") % self.vm.get_name()
-            text = title
         else:
             title = _("Deleting virtual machine '%s'") % self.vm.get_name()
-            text = title
-        return [title, text]
+        text = title
+        return [text, text]
 
     def _get_remove_storage_default(self):
         return True
@@ -306,8 +306,7 @@ class vmmDeleteDialog(_vmmDeleteBase):
         return _build_diskdata_for_vm(self.vm)
 
     def _vm_active_status(self):
-        vm_active = self.vm.is_active()
-        return vm_active
+        return self.vm.is_active()
 
     def _remove_device(self, paths):
         dummy = paths
@@ -380,7 +379,7 @@ class vmmDeleteStorage(_vmmDeleteBase):
         else:
             title = _("Removing disk device '%s'") % self.disk.target
         text = title
-        return [title, text]
+        return [text, text]
 
     def _get_remove_storage_default(self):
         return False
@@ -437,16 +436,14 @@ def _build_diskdata_for_vm(vm):
     """
     Return a list of _DiskData for all VM resources the app attempts to delete
     """
-    diskdatas = []
-    for disk in vm.xmlobj.devices.disk:
-        diskdatas.append(_DiskData.from_disk(disk))
-
-    diskdatas.append(
-            _DiskData("kernel", vm.get_xmlobj().os.kernel, True, False, True))
-    diskdatas.append(
-            _DiskData("initrd", vm.get_xmlobj().os.initrd, True, False, True))
-    diskdatas.append(
-            _DiskData("dtb", vm.get_xmlobj().os.dtb, True, False, True))
+    diskdatas = [_DiskData.from_disk(disk) for disk in vm.xmlobj.devices.disk]
+    diskdatas.extend(
+        (
+            _DiskData("kernel", vm.get_xmlobj().os.kernel, True, False, True),
+            _DiskData("initrd", vm.get_xmlobj().os.initrd, True, False, True),
+            _DiskData("dtb", vm.get_xmlobj().os.dtb, True, False, True),
+        )
+    )
 
     return diskdatas
 
@@ -567,17 +564,16 @@ def _can_delete(conn, vol, path):
             msg = _("Cannot delete iSCSI share.")  # pragma: no cover
         elif pool_type == virtinst.StoragePool.TYPE_SCSI:
             msg = _("Cannot delete SCSI device.")  # pragma: no cover
-    else:
-        if conn.is_remote():
-            msg = _("Cannot delete unmanaged remote storage.")
-        elif not os.path.exists(path):
-            msg = _("Path does not exist.")
-        elif not os.access(os.path.dirname(path), os.W_OK):
-            msg = _("No write access to parent directory.")
-        elif stat.S_ISBLK(os.stat(path)[stat.ST_MODE]):  # pragma: no cover
-            msg = _("Cannot delete unmanaged block device.")
+    elif conn.is_remote():
+        msg = _("Cannot delete unmanaged remote storage.")
+    elif not os.path.exists(path):
+        msg = _("Path does not exist.")
+    elif not os.access(os.path.dirname(path), os.W_OK):
+        msg = _("No write access to parent directory.")
+    elif stat.S_ISBLK(os.stat(path)[stat.ST_MODE]):  # pragma: no cover
+        msg = _("Cannot delete unmanaged block device.")
 
-    can_delete = bool(not msg)
+    can_delete = not msg
     return (can_delete, msg)
 
 
@@ -611,5 +607,5 @@ def _do_we_default(conn, vm_name, vol, diskdata):
         info.append(_("Failed to check disk usage conflict."))
 
     infostr = "\n".join(info)
-    do_default = bool(not infostr)
+    do_default = not infostr
     return (do_default, infostr)

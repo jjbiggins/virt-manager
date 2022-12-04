@@ -13,7 +13,7 @@ from virtinst import Capabilities
 from virtinst import DomainCapabilities
 
 
-DATADIR = utils.DATADIR + "/capabilities"
+DATADIR = f"{utils.DATADIR}/capabilities"
 
 
 def _buildCaps(filename):
@@ -56,7 +56,7 @@ def testCapsUtilFuncs():
 ##############################
 
 def testDomainCapabilities():
-    xml = open(DATADIR + "/test-domcaps.xml").read()
+    xml = open(f"{DATADIR}/test-domcaps.xml").read()
     caps = DomainCapabilities(utils.URIs.open_testdriver_cached(), xml)
 
     assert caps.machine == "my-machine-type"
@@ -73,7 +73,7 @@ def testDomainCapabilities():
 
 
 def testDomainCapabilitiesx86():
-    xml = open(DATADIR + "/kvm-x86_64-domcaps-latest.xml").read()
+    xml = open(f"{DATADIR}/kvm-x86_64-domcaps-latest.xml").read()
     caps = DomainCapabilities(utils.URIs.open_testdriver_cached(), xml)
 
     custom_mode = caps.cpu.get_mode("custom")
@@ -93,13 +93,13 @@ def testDomainCapabilitiesx86():
     assert caps.supports_filesystem_virtiofs()
     assert caps.supports_memorybacking_memfd()
 
-    xml = open(DATADIR + "/kvm-x86_64-domcaps-amd-sev.xml").read()
+    xml = open(f"{DATADIR}/kvm-x86_64-domcaps-amd-sev.xml").read()
     caps = DomainCapabilities(utils.URIs.open_testdriver_cached(), xml)
     assert caps.supports_sev_launch_security()
 
 
 def testDomainCapabilitiesAArch64():
-    xml = open(DATADIR + "/kvm-aarch64-domcaps.xml").read()
+    xml = open(f"{DATADIR}/kvm-aarch64-domcaps.xml").read()
     caps = DomainCapabilities(utils.URIs.open_testdriver_cached(), xml)
 
     assert "Default" in caps.label_for_firmware_path(None)

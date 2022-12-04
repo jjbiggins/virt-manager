@@ -16,9 +16,9 @@ def testAbout(app):
     win = app.root.find_fuzzy("About", "dialog")
     l = win.find_fuzzy("Copyright", "label")
 
-    curyear = datetime.datetime.today().strftime("%Y")
+    curyear = datetime.datetime.now().strftime("%Y")
     if curyear not in l.text:
-        print("Current year=%s not in about.ui dialog!" % curyear)
+        print(f"Current year={curyear} not in about.ui dialog!")
 
     win.keyCombo("<ESC>")
     lib.utils.check(lambda: win.visible is False)

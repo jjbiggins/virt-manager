@@ -21,13 +21,11 @@ def _qemu_sanitize_drvtype(phystype, fmt):
     """
     Sanitize libvirt storage volume format to a valid qemu driver type
     """
-    raw_list = ["iso"]
-
     if phystype == DeviceDisk.TYPE_BLOCK:
         return DeviceDisk.DRIVER_TYPE_RAW
-    if fmt in raw_list:
-        return DeviceDisk.DRIVER_TYPE_RAW
-    return fmt
+    raw_list = ["iso"]
+
+    return DeviceDisk.DRIVER_TYPE_RAW if fmt in raw_list else fmt
 
 
 class _Host(XMLBuilder):
@@ -112,12 +110,12 @@ class _DiskSource(XMLBuilder):
 
         ret = self.protocol or "unknown"
         if host.transport:
-            ret += "+%s" % host.transport
+            ret += f"+{host.transport}"
         ret += "://"
         if host.name:
             ret += host.name
             if host.port:
-                ret += ":" + str(host.port)
+                ret += f":{str(host.port)}"
         if self.name:
             if not self.name.startswith("/"):
                 ret += "/"
@@ -148,10 +146,7 @@ class _DiskSource(XMLBuilder):
         volume, set the <source> elements directly
         """
         is_iscsi_direct = poolxml.type == "iscsi-direct"
-        protocol = poolxml.type
-        if is_iscsi_direct:
-            protocol = "iscsi"
-
+        protocol = "iscsi" if is_iscsi_direct else poolxml.type
         self.protocol = protocol
         for idx, poolhost in enumerate(poolxml.hosts):
             if len(self.hosts) < (idx + 1):
@@ -276,9 +271,7 @@ class DeviceDisk(Device):
 
         :returns: Return a dictionary of entries {broken path : error msg}
         """
-        errdict = diskbackend.set_dirs_searchable(
-                searchdata.fixlist, searchdata.user)
-        return errdict
+        return diskbackend.set_dirs_searchable(searchdata.fixlist, searchdata.user)
 
     @staticmethod
     def path_in_use_by(conn, path, shareable=False, read_only=False):
@@ -297,8 +290,12 @@ class DeviceDisk(Device):
 
         # Find all volumes that have 'path' somewhere in their backing chain
         vols = []
-        volmap = dict((vol.backing_store, vol)
-                      for vol in conn.fetch_all_vols() if vol.backing_store)
+        volmap = {
+            vol.backing_store: vol
+            for vol in conn.fetch_all_vols()
+            if vol.backing_store
+        }
+
         backpath = path
         while backpath in volmap:
             vol = volmap[backpath]
@@ -310,10 +307,9 @@ class DeviceDisk(Device):
         ret = []
         vms = conn.fetch_all_domains()
         for vm in vms:
-            if not read_only:
-                if path in [vm.os.kernel, vm.os.initrd, vm.os.dtb]:
-                    ret.append(vm.name)
-                    continue
+            if not read_only and path in [vm.os.kernel, vm.os.initrd, vm.os.dtb]:
+                ret.append(vm.name)
+                continue
 
             for disk in vm.devices.disk:
                 checkpath = disk.get_source_path()
@@ -361,11 +357,7 @@ class DeviceDisk(Device):
                       volname, poolobj.name())
 
         cap = (size * 1024 * 1024 * 1024)
-        if sparse:
-            alloc = 0
-        else:
-            alloc = cap
-
+        alloc = 0 if sparse else cap
         volinst = StorageVolume(conn)
         volinst.pool = poolobj
         volinst.name = volname
@@ -389,20 +381,14 @@ class DeviceDisk(Device):
         (like hda, hdb, hdaa, etc.)
         """
         digits = []
-        for factor in range(0, 3):
+        for factor in range(3):
             amt = (num % (26 ** (factor + 1))) // (26 ** factor)
             if amt == 0 and num >= (26 ** (factor + 1)):
                 amt = 26
             num -= amt
             digits.insert(0, amt)
 
-        gen_t = ""
-        for digit in digits:
-            if digit == 0:
-                continue
-            gen_t += "%c" % (ord('a') + digit - 1)
-
-        return gen_t
+        return "".join("%c" % (ord('a') + digit - 1) for digit in digits if digit != 0)
 
 
     @staticmethod
@@ -522,9 +508,7 @@ class DeviceDisk(Device):
             return DeviceDisk.TYPE_VOLUME
         if not self._storage_backend.is_stub():
             return self._storage_backend.get_dev_type()
-        if self.source.protocol:
-            return DeviceDisk.TYPE_NETWORK
-        return self.TYPE_FILE
+        return DeviceDisk.TYPE_NETWORK if self.source.protocol else self.TYPE_FILE
 
     def _get_default_driver_name(self):
         if self.is_empty():
@@ -556,17 +540,13 @@ class DeviceDisk(Device):
         return _qemu_sanitize_drvtype(self.type, drvtype)
 
     def _get_type(self):
-        if self._xmltype:
-            return self._xmltype
-        return self._get_default_type()
+        return self._xmltype or self._get_default_type()
     def _set_type(self, val):
         self._xmltype = val
     type = property(_get_type, _set_type)
 
     def _get_device(self):
-        if self._device:
-            return self._device
-        return self.DEVICE_DISK
+        return self._device or self.DEVICE_DISK
     def _set_device(self, val):
         self._device = val
     device = property(_get_device, _set_device)
@@ -707,13 +687,7 @@ class DeviceDisk(Device):
     # they don't have any special properties aside from needing to match
     # 'type' value with the source property used.
     def _get_xmlpath(self):
-        if self.source.file:
-            return self.source.file
-        if self.source.dev:
-            return self.source.dev
-        if self.source.dir:
-            return self.source.dir
-        return None
+        return self.source.file or self.source.dev or self.source.dir or None
 
     def _set_xmlpath(self, val):
         self.source.clear_source()
@@ -722,10 +696,10 @@ class DeviceDisk(Device):
             self._set_network_source_from_backend()
             return
 
-        propname = self._disk_type_to_object_prop_name()
-        if not propname:
+        if propname := self._disk_type_to_object_prop_name():
+            return setattr(self.source, propname, val)
+        else:
             return
-        return setattr(self.source, propname, val)
 
     def set_local_disk_to_clone(self, disk, sparse):
         """
@@ -754,10 +728,7 @@ class DeviceDisk(Device):
     def can_be_empty(self):
         if self.is_floppy() or self.is_cdrom():
             return True
-        if self.type in ["file", "block", "dir", "volume", "network"]:
-            return False
-        # Don't error for unknown types
-        return True
+        return self.type not in ["file", "block", "dir", "volume", "network"]
 
     def wants_storage_creation(self):
         """
@@ -834,10 +805,12 @@ class DeviceDisk(Device):
 
         :returns: list of colliding VM names
         """
-        ret = self.path_in_use_by(self.conn, self.get_source_path(),
-                                  shareable=self.shareable,
-                                  read_only=self.read_only)
-        return ret
+        return self.path_in_use_by(
+            self.conn,
+            self.get_source_path(),
+            shareable=self.shareable,
+            read_only=self.read_only,
+        )
 
 
     ###########################
@@ -979,10 +952,7 @@ class DeviceDisk(Device):
             return "sd"
         if guest.os.is_q35():
             return "sata"
-        if self.conn.is_bhyve():
-            # IDE bus is not supported by bhyve
-            return "sata"
-        return "ide"
+        return "sata" if self.conn.is_bhyve() else "ide"
 
     def set_defaults(self, guest):
         if not self._device:
@@ -1015,9 +985,8 @@ class DeviceDisk(Device):
             if not self.driver_io:
                 self.driver_io = self.IO_MODE_NATIVE
 
-        if discard_unmap:
-            if not self.driver_discard:
-                self.driver_discard = "unmap"
+        if discard_unmap and not self.driver_discard:
+            self.driver_discard = "unmap"
 
         if not self.target:
             used_targets = [d.target for d in guest.devices.disk if d.target]

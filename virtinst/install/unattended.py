@@ -27,9 +27,7 @@ def _is_user_login_safe(login):
 def _login_from_hostuser():
     hostuser = getpass.getuser()
     realname = pwd.getpwnam(hostuser).pw_gecos
-    if not _is_user_login_safe(hostuser):
-        return None, None  # pragma: no cover
-    return hostuser, realname  # pragma: no cover
+    return (hostuser, realname) if _is_user_login_safe(hostuser) else (None, None)
 
 
 def _make_installconfig(script, osobj, unattended_data, arch, hostname, url):
@@ -159,11 +157,13 @@ class OSInstallScript:
         from ..osdict import OSDB
 
         win7 = OSDB.lookup_os("win7")
-        for script in win7.get_install_script_list():
-            if (Libosinfo.InstallScriptInjectionMethod.CDROM &
-                script.get_injection_methods()):
-                return True
-        return False  # pragma: no cover
+        return any(
+            (
+                Libosinfo.InstallScriptInjectionMethod.CDROM
+                & script.get_injection_methods()
+            )
+            for script in win7.get_install_script_list()
+        )
 
     @staticmethod
     def have_libosinfo_installation_url():
@@ -316,11 +316,7 @@ def _make_scriptmap(script_list):
 
 def _find_default_profile(profile_names):
     profile_prefs = ["desktop"]
-    found = None
-    for p in profile_prefs:
-        if p in profile_names:
-            found = p
-            break
+    found = next((p for p in profile_prefs if p in profile_names), None)
     return found or profile_names[0]
 
 
@@ -365,10 +361,7 @@ def _lookup_rawscripts(osinfo, profile, os_media):
     # Some OSes (as Windows) have more than one installer script,
     # depending on the OS version and profile chosen, to be used to
     # perform the unattended installation.
-    ids = []
-    for rawscript in rawscripts:
-        ids.append(rawscript.get_id())
-
+    ids = [rawscript.get_id() for rawscript in rawscripts]
     log.debug("Install scripts found for profile '%s': %s",
             profile, ", ".join(ids))
     return rawscripts
@@ -377,9 +370,7 @@ def _lookup_rawscripts(osinfo, profile, os_media):
 def prepare_install_scripts(guest, unattended_data,
         url, os_media, os_tree, injection_method):
     def _get_installation_source(os_media):
-        if not os_media:
-            return "network"
-        return "media"
+        return "media" if os_media else "network"
 
     scripts = []
     rawscripts = _lookup_rawscripts(guest.osinfo,

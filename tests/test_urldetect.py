@@ -22,7 +22,7 @@ def _test(mockurl, distro=None, initrd=None,
 
     conn = tests.utils.URIs.open_testdefault_cached()
     guest = virtinst.Guest(conn)
-    guest.os.os_type = xen and "xen" or "hvm"
+    guest.os.os_type = "xen" if xen else "hvm"
     if arch:
         guest.os.arch = arch
 
@@ -41,9 +41,9 @@ def _test(mockurl, distro=None, initrd=None,
     kernels = [p[0] for p in treecache.kernel_pairs]
     initrds = [p[1] for p in treecache.kernel_pairs]
     if initrd:
-        assert any([i.endswith(initrd) for i in initrds])
+        assert any(i.endswith(initrd) for i in initrds)
     if kernel:
-        assert any([k.endswith(kernel) for k in kernels])
+        assert any(k.endswith(kernel) for k in kernels)
 
 
 def test_debian():

@@ -98,9 +98,7 @@ class DeviceGraphics(Device):
             self.remove_child(listen)
 
     def get_first_listen_type(self):
-        if len(self.listens) > 0:
-            return self.listens[0].type
-        return None
+        return self.listens[0].type if len(self.listens) > 0 else None
 
     def _set_listen_none(self):
         self._remove_all_listens()
@@ -139,18 +137,14 @@ class DeviceGraphics(Device):
         return None
 
     def _get_default_tlsport(self):
-        if self.type == "spice" and self._listen_need_port():
-            return -1
-        return None
+        return -1 if self.type == "spice" and self._listen_need_port() else None
 
     def _get_default_autoport(self):
         # By default, don't do this for VNC to maintain back compat with
         # old libvirt that didn't support 'autoport'
         if self.type != "spice":
             return None
-        if (self.port == -1 and self.tlsPort == -1):
-            return True
-        return None
+        return True if (self.port == -1 and self.tlsPort == -1) else None
 
     def _default_type(self, guest):
         gtype = guest.default_graphics_type

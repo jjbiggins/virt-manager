@@ -123,8 +123,10 @@ class _DeviceChar(Device):
             self.source.mode = "bind"
         if not self.target_type and self.DEVICE_TYPE == "channel":
             self.target_type = "virtio"
-        if not self.target_name and (self.type == self.TYPE_SPICEVMC or
-                self.type == self.TYPE_QEMUVDAGENT):
+        if not self.target_name and self.type in [
+            self.TYPE_SPICEVMC,
+            self.TYPE_QEMUVDAGENT,
+        ]:
             self.target_name = self.CHANNEL_NAME_SPICE
 
 

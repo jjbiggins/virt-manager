@@ -50,7 +50,7 @@ class DomainOs(XMLBuilder):
         return self.os_type == "exe"
 
     def is_x86(self):
-        return self.arch == "x86_64" or self.arch == "i686"
+        return self.arch in ["x86_64", "i686"]
     def is_q35(self):
         return (self.is_x86() and
                 self.machine and
@@ -66,7 +66,7 @@ class DomainOs(XMLBuilder):
         return self.is_arm() and str(self.machine).startswith("virt")
 
     def is_ppc64(self):
-        return self.arch == "ppc64" or self.arch == "ppc64le"
+        return self.arch in ["ppc64", "ppc64le"]
     def is_pseries(self):
         return self.is_ppc64() and str(self.machine).startswith("pseries")
 
@@ -74,7 +74,7 @@ class DomainOs(XMLBuilder):
         return self.arch == "s390x"
 
     def is_riscv(self):
-        return self.arch == "riscv64" or self.arch == "riscv32"
+        return self.arch in ["riscv64", "riscv32"]
     def is_riscv_virt(self):
         return self.is_riscv() and str(self.machine).startswith("virt")
 
@@ -160,7 +160,4 @@ class DomainOs(XMLBuilder):
 
     def set_defaults(self, guest):
         if self.is_container() and not self.init:
-            if guest.is_full_os_container():
-                self.init = "/sbin/init"
-            else:
-                self.init = "/bin/sh"
+            self.init = "/sbin/init" if guest.is_full_os_container() else "/bin/sh"

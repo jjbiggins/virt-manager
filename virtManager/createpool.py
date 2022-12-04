@@ -79,7 +79,7 @@ class vmmCreatePool(vmmGObjectUI):
 
         for typ in vmmStoragePool.list_types():
             desc = vmmStoragePool.pretty_type(typ)
-            model.append([typ, "%s: %s" % (typ, desc)])
+            model.append([typ, f"{typ}: {desc}"])
 
     def _init_ui(self):
         format_list = self.widget("pool-format")
@@ -157,7 +157,7 @@ class vmmCreatePool(vmmGObjectUI):
     def _list_scsi_adapters(self):
         scsi_hosts = self.conn.filter_nodedevs("scsi_host")
         host_list = [dev.xmlobj.host for dev in scsi_hosts]
-        return ["host%s" % h for h in host_list]
+        return [f"host{h}" for h in host_list]
 
     def _list_pool_sources(self, pool_type):
         plist = []
@@ -170,16 +170,15 @@ class vmmCreatePool(vmmGObjectUI):
         return plist
 
     def _get_build_default(self, pooltype):
-        if pooltype in [StoragePool.TYPE_DIR,
-                        StoragePool.TYPE_FS,
-                        StoragePool.TYPE_NETFS]:
-            # Building for these simply entails creating a directory
-            return True
-        return False
+        return pooltype in [
+            StoragePool.TYPE_DIR,
+            StoragePool.TYPE_FS,
+            StoragePool.TYPE_NETFS,
+        ]
 
     def _show_options_by_pool(self):
         def show_row(base, do_show):
-            widget = self.widget(base + "-label")
+            widget = self.widget(f"{base}-label")
             uiutil.set_grid_row_visible(widget, do_show)
 
         pool = self._make_stub_pool()
@@ -381,24 +380,25 @@ class vmmCreatePool(vmmGObjectUI):
         self._show_options_by_pool()
 
     def _browse_source_cb(self, src):
-        source = self.err.browse_local(self.conn,
-                _("Choose source path"),
-                dialog_type=Gtk.FileChooserAction.OPEN,
-                start_folder="/dev")
-        if source:
+        if source := self.err.browse_local(
+            self.conn,
+            _("Choose source path"),
+            dialog_type=Gtk.FileChooserAction.OPEN,
+            start_folder="/dev",
+        ):
             self.widget("pool-source-path").get_child().set_text(source)
 
     def _browse_target_cb(self, src):
-        current = self._get_config_target_path()
-        startfolder = None
-        if current:
+        if current := self._get_config_target_path():
             startfolder = os.path.dirname(current)
-
-        target = self.err.browse_local(self.conn,
-                _("Choose target directory"),
-                dialog_type=Gtk.FileChooserAction.SELECT_FOLDER,
-                start_folder=startfolder)
-        if target:
+        else:
+            startfolder = None
+        if target := self.err.browse_local(
+            self.conn,
+            _("Choose target directory"),
+            dialog_type=Gtk.FileChooserAction.SELECT_FOLDER,
+            start_folder=startfolder,
+        ):
             self.widget("pool-target-path").set_text(target)
 
     def _iqn_toggled_cb(self, src):

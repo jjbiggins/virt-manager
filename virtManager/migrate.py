@@ -99,8 +99,7 @@ class vmmMigrateDialog(vmmGObjectUI):
             self.close()
 
     def _set_vm(self, newvm):
-        oldvm = self.vm
-        if oldvm:
+        if oldvm := self.vm:
             oldvm.conn.disconnect_by_obj(self)
         if newvm:
             newvm.conn.connect("vm-removed", self._vm_removed_cb)
@@ -132,9 +131,8 @@ class vmmMigrateDialog(vmmGObjectUI):
 
             row1 = model[iter1]
             row2 = model[iter2]
-            if row1[COL_URI] is None:
-                return -1
-            return _cmp(row1[COL_LABEL], row2[COL_LABEL])
+            return -1 if row1[COL_URI] is None else _cmp(row1[COL_LABEL], row2[COL_LABEL])
+
         model.set_sort_func(COL_LABEL, _sorter)
 
         # Mode combo
@@ -170,7 +168,7 @@ class vmmMigrateDialog(vmmGObjectUI):
         self.widget("config-box").set_visible(True)
 
         hostname = self.conn.libvirt_gethostname()
-        srctext = "%s (%s)" % (hostname, self.conn.get_pretty_desc())
+        srctext = f"{hostname} ({self.conn.get_pretty_desc()})"
         self.widget("migrate-label-name").set_text(self.vm.get_name_or_title())
         self.widget("migrate-label-src").set_text(srctext)
         self.widget("migrate-label-src").set_tooltip_text(self.conn.get_uri())
@@ -217,9 +215,11 @@ class vmmMigrateDialog(vmmGObjectUI):
         can_migrate = row and row[COL_CAN_MIGRATE] or False
         uri = row[COL_URI]
 
-        tooltip = ""
-        if not can_migrate:
-            tooltip = _("A valid destination connection must be selected.")
+        tooltip = (
+            ""
+            if can_migrate
+            else _("A valid destination connection must be selected.")
+        )
 
         self.widget("config-box").set_visible(can_migrate)
         self.widget("migrate-finish").set_sensitive(can_migrate)
@@ -304,11 +304,8 @@ class vmmMigrateDialog(vmmGObjectUI):
         model = combo.get_model()
         model.clear()
 
-        rows = []
-        for conn in list(self._connobjs.values()):
-            rows.append(self._build_dest_row(conn))
-
-        if not any([row[COL_CAN_MIGRATE] for row in rows]):
+        rows = [self._build_dest_row(conn) for conn in list(self._connobjs.values())]
+        if not any(row[COL_CAN_MIGRATE] for row in rows):
             rows.insert(0,
                 [_("No usable connections available."), None, False])
 
@@ -338,12 +335,9 @@ class vmmMigrateDialog(vmmGObjectUI):
         if not address:
             return
 
-        if self.conn.is_xen():
-            uri = "%s" % address
-        else:
-            uri = "tcp:%s" % address
+        uri = f"{address}" if self.conn.is_xen() else f"tcp:{address}"
         if port:
-            uri += ":%s" % port
+            uri += f":{port}"
         return uri
 
     def _finish_cb(self, error, details, destconn):
@@ -390,7 +384,7 @@ class vmmMigrateDialog(vmmGObjectUI):
             cancel_cb = (self._cancel_migration, self.vm)
 
         if uri:
-            destlabel += " " + uri
+            destlabel += f" {uri}"
 
         progWin = vmmAsyncJob(
             self._async_migrate,

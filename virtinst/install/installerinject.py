@@ -25,14 +25,12 @@ def _run_initrd_commands(initrd, tempdir):
                                  stdout=subprocess.PIPE,
                                  stderr=subprocess.PIPE,
                                  cwd=tempdir)
-    f = open(initrd, 'ab')
-    gzip_proc = subprocess.Popen(['gzip'], stdin=cpio_proc.stdout,
-                                 stdout=f, stderr=subprocess.PIPE)
-    cpio_proc.wait()
-    find_proc.wait()
-    gzip_proc.wait()
-    f.close()
-
+    with open(initrd, 'ab') as f:
+        gzip_proc = subprocess.Popen(['gzip'], stdin=cpio_proc.stdout,
+                                     stdout=f, stderr=subprocess.PIPE)
+        cpio_proc.wait()
+        find_proc.wait()
+        gzip_proc.wait()
     finderr = find_proc.stderr.read()
     cpioerr = cpio_proc.stderr.read()
     gziperr = gzip_proc.stderr.read()
@@ -108,10 +106,7 @@ def perform_cdrom_injections(injections, scratchdir, cloudinit=False):
     """
     Insert files into the root directory of a generated cdrom
     """
-    if cloudinit:
-        iso_suffix = "-cloudinit.iso"
-    else:
-        iso_suffix = "-unattended.iso"
+    iso_suffix = "-cloudinit.iso" if cloudinit else "-unattended.iso"
     fileobj = tempfile.NamedTemporaryFile(
         prefix="virtinst-", suffix=iso_suffix,
         dir=scratchdir, delete=False)

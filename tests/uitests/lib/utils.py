@@ -35,12 +35,11 @@ def walkUIList(app, win, lst, error_cb, reverse=False):
     idx = 0
     while idx < len(all_cells):
         cell = all_cells[idx]
-        if not cell.state_selected:
-            # Could be a separator table cell. Try to figure it out
-            if not any([c.name for c in
-                        all_cells[idx:(idx + cells_per_selection)]]):
-                idx += cells_per_selection
-                continue
+        if not cell.state_selected and not any(
+            c.name for c in all_cells[idx : (idx + cells_per_selection)]
+        ):
+            idx += cells_per_selection
+            continue
 
         check(lambda: cell.state_selected)
         app.rawinput.pressKey(reverse and "Up" or "Down")

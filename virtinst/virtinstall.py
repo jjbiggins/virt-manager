@@ -83,7 +83,7 @@ def convert_old_init(options):
         return
     if not options.boot:
         options.boot = [""]
-    options.boot[-1] += ",init=%s" % options.init
+    options.boot[-1] += f",init={options.init}"
     log.debug("Converted old --init to --boot %s", options.boot[-1])
 
 
@@ -103,11 +103,11 @@ def _do_convert_old_disks(options):
     for idx, path in enumerate(disklist):
         optstr = ""
         if path:
-            optstr += "path=%s" % path
+            optstr += f"path={path}"
         if sizelist[idx]:
             if optstr:
                 optstr += ","
-            optstr += "size=%s" % sizelist[idx]
+            optstr += f"size={sizelist[idx]}"
         if options.sparse is False:
             if optstr:
                 optstr += ","
@@ -163,7 +163,7 @@ def convert_old_cpuset(options):
         return
 
     newvcpus = options.vcpus or []
-    newvcpus.append(",cpuset=%s" % options.cpuset)
+    newvcpus.append(f",cpuset={options.cpuset}")
     options.vcpus = newvcpus
     log.debug("Generated compat cpuset: --vcpus %s", options.vcpus[-1])
 
@@ -181,7 +181,7 @@ def convert_old_networks(options):
 
     if bridges:
         # Convert old --bridges to --networks
-        networks = ["bridge:" + b for b in bridges]
+        networks = [f"bridge:{b}" for b in bridges]
 
     def padlist(l, padsize):
         l = virtinst.xmlutil.listify(l)
@@ -196,13 +196,12 @@ def convert_old_networks(options):
         if networks[idx] is None:
             networks[idx] = "default"
         if macs[idx]:
-            networks[idx] += ",mac=%s" % macs[idx]
+            networks[idx] += f",mac={macs[idx]}"
 
         # Handle old format of bridge:foo instead of bridge=foo
         for prefix in ["network", "bridge"]:
-            if networks[idx].startswith(prefix + ":"):
-                networks[idx] = networks[idx].replace(prefix + ":",
-                                                      prefix + "=")
+            if networks[idx].startswith(f"{prefix}:"):
+                networks[idx] = networks[idx].replace(f"{prefix}:", f"{prefix}=")
 
     del(options.mac)
     del(options.bridge)
@@ -224,7 +223,7 @@ def convert_old_graphics(options):
     if graphics and (vnc or sdl or keymap or vncport or vnclisten):
         fail(_("Cannot mix --graphics and old style graphical options"))
 
-    optnum = sum([bool(g) for g in [vnc, nographics, sdl, graphics]])
+    optnum = sum(bool(g) for g in [vnc, nographics, sdl, graphics])
     if optnum > 1:
         raise ValueError(_("Can't specify more than one of VNC, SDL, "
                            "--graphics or --nographics"))
@@ -240,11 +239,11 @@ def convert_old_graphics(options):
               (sdl and "sdl") or
               (nographics and ("none")))
     if vnclisten:
-        optstr += ",listen=%s" % vnclisten
+        optstr += f",listen={vnclisten}"
     if vncport:
-        optstr += ",port=%s" % vncport
+        optstr += f",port={vncport}"
     if keymap:
-        optstr += ",keymap=%s" % keymap
+        optstr += f",keymap={keymap}"
 
     log.debug("--graphics compat generated: %s", optstr)
     options.graphics = [optstr]
@@ -293,9 +292,7 @@ def do_test_media_detection(conn, options):
 #############################
 
 def storage_specified(options, guest):
-    if guest.os.is_container():
-        return True
-    return options.disk or options.filesystem
+    return True if guest.os.is_container() else options.disk or options.filesystem
 
 
 def memory_specified(guest):
@@ -342,8 +339,7 @@ def _show_memory_warnings(guest):
 
     res = guest.osinfo.get_recommended_resources()
     rammb = guest.currentMemory // 1024
-    minram = (res.get_minimum_ram(guest.os.arch) or 0)
-    if minram:
+    if minram := (res.get_minimum_ram(guest.os.arch) or 0):
         if (minram // 1024) > guest.currentMemory:
             log.warning(_("Requested memory %(mem1)s MiB is less than the "
                 "recommended %(mem2)s MiB for OS %(osname)s"),
@@ -750,10 +746,7 @@ class WaitHandler:
         """
         _sleep(1)
         if self._wait_forever:
-            if virtinst.xmlutil.in_testsuite():
-                return True
-            return False  # pragma: no cover
-
+            return bool(virtinst.xmlutil.in_testsuite())
         time_elapsed = (time.time() - self._start_time)
         return (time_elapsed >= self._wait_secs) or virtinst.xmlutil.in_testsuite()
 
@@ -893,8 +886,7 @@ def _wait_for_domain(installer, instdomain, autoconsole, waithandler):
             print_stdout(_("Domain has shutdown. Continuing."))
             break
 
-        done = waithandler.wait()
-        if done:
+        if done := waithandler.wait():
             print_stdout(
                 _("Installation has exceeded specified time limit. "
                   "Exiting application."))
@@ -1227,8 +1219,7 @@ def main(conn=None):
 
     guest, installer = build_guest_instance(conn, options)
     if options.xmlonly or options.dry:
-        xml = xml_to_print(guest, installer, options.xmlonly, options.dry)
-        if xml:
+        if xml := xml_to_print(guest, installer, options.xmlonly, options.dry):
             print_stdout(xml, do_force=True)
     else:
         start_install(guest, installer, options)

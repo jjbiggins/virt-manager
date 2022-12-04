@@ -108,7 +108,4 @@ class Network(XMLBuilder):
         forward = self.forward.mode
         if forward and forward != "nat":
             return True
-        for ip in self.ips:
-            if ip.bootp_file:
-                return True
-        return False
+        return any(ip.bootp_file for ip in self.ips)

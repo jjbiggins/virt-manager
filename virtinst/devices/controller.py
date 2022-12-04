@@ -23,12 +23,10 @@ class DeviceController(Device):
 
     @staticmethod
     def get_usb2_controllers(conn):
-        ret = []
         ctrl = DeviceController(conn)
         ctrl.type = "usb"
         ctrl.model = "ich9-ehci1"
-        ret.append(ctrl)
-
+        ret = [ctrl]
         ctrl = DeviceController(conn)
         ctrl.type = "usb"
         ctrl.model = "ich9-uhci1"
@@ -87,19 +85,22 @@ class DeviceController(Device):
     target_node = XMLProperty("./target/node", is_int=True)
 
     def _get_attached_disk_devices(self, guest):
-        ret = []
-        for disk in guest.devices.disk:
-            if (self.type == disk.bus and
-                self.index == disk.address.controller):
-                ret.append(disk)
-        return ret
+        return [
+            disk
+            for disk in guest.devices.disk
+            if (self.type == disk.bus and self.index == disk.address.controller)
+        ]
 
     def _get_attached_virtioserial_devices(self, guest):
-        ret = []
-        for dev in guest.devices.channel:
-            if (self.type == dev.address.type and
-                self.index == dev.address.controller):
-                ret.append(dev)
+        ret = [
+            dev
+            for dev in guest.devices.channel
+            if (
+                self.type == dev.address.type
+                and self.index == dev.address.controller
+            )
+        ]
+
         for dev in guest.devices.console:
             # virtio console is implied to be on virtio-serial index=0
             if self.index == 0 and dev.target_type == "virtio":

@@ -131,11 +131,11 @@ class vmmKeyring(vmmGObject):
 
             secret = "".join([chr(c) for c in secretbytes])
 
-            attrs = {}
-            for key, val in dbusattrs.items():
-                if key not in ["hvuri", "uuid"]:
-                    continue
-                attrs["%s" % key] = "%s" % val
+            attrs = {
+                f"{key}": f"{val}"
+                for key, val in dbusattrs.items()
+                if key in ["hvuri", "uuid"]
+            }
 
             ret = _vmmSecret(label, secret, attrs)
         except Exception:  # pragma: no cover
@@ -149,10 +149,10 @@ class vmmKeyring(vmmGObject):
     ##############
 
     def is_available(self):
-        return not (self._collection is None)
+        return self._collection is not None
 
     def _get_secret_name(self, vm):
-        return "vm-console-" + vm.get_uuid()
+        return f"vm-console-{vm.get_uuid()}"
 
     def get_console_password(self, vm):
         if not self.is_available():

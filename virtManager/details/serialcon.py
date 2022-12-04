@@ -293,7 +293,7 @@ class vmmSerialConsole(vmmGObject):
     ###################
 
     def _show_error(self, msg):
-        self._error_label.set_markup("<b>%s</b>" % msg)
+        self._error_label.set_markup(f"<b>{msg}</b>")
         self._box.set_current_page(1)
 
     def _lookup_dev(self):

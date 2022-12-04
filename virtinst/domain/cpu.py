@@ -294,8 +294,10 @@ class DomainCpu(XMLBuilder):
             val = self._get_app_default_mode(guest)
             log.debug("Using default cpu mode=%s", val)
 
-        if (val == self.SPECIAL_MODE_HOST_MODEL or
-            val == self.SPECIAL_MODE_HOST_PASSTHROUGH):
+        if val in [
+            self.SPECIAL_MODE_HOST_MODEL,
+            self.SPECIAL_MODE_HOST_PASSTHROUGH,
+        ]:
             self.model = None
             self.vendor = None
             self.model_fallback = None
@@ -304,11 +306,9 @@ class DomainCpu(XMLBuilder):
             for f in self.features:
                 self.remove_child(f)
             self.mode = val
-        elif (val == self.SPECIAL_MODE_HV_DEFAULT or
-              val == self.SPECIAL_MODE_CLEAR):
+        elif val in [self.SPECIAL_MODE_HV_DEFAULT, self.SPECIAL_MODE_CLEAR]:
             self.clear()
-        elif (val == self.SPECIAL_MODE_HOST_MODEL_ONLY or
-              val == self.SPECIAL_MODE_HOST_COPY):
+        elif val in [self.SPECIAL_MODE_HOST_MODEL_ONLY, self.SPECIAL_MODE_HOST_COPY]:
             if val == self.SPECIAL_MODE_HOST_COPY:
                 log.warning("CPU mode=%s no longer supported, using mode=%s",
                         val, self.SPECIAL_MODE_HOST_MODEL_ONLY)
@@ -328,11 +328,7 @@ class DomainCpu(XMLBuilder):
     def _add_security_features(self, guest):
         domcaps = guest.lookup_domcaps()
         for feature in domcaps.get_cpu_security_features():
-            exists = False
-            for f in self.features:
-                if f.name == feature:
-                    exists = True
-                    break
+            exists = any(f.name == feature for f in self.features)
             if not exists:
                 self.add_feature(feature)
 

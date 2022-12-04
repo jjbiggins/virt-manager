@@ -117,9 +117,7 @@ def _build_testfunc(dobj, do_setup):
 
 
 def _make_tests():
-    idx = 0
-    for dname, dobj in _alldistros.items():
-        idx += 1
+    for idx, (dname, dobj) in enumerate(_alldistros.items(), start=1):
         name = "testInitrd%.3d_%s" % (idx, dname)
 
         do_setup = idx == 1

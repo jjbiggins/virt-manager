@@ -54,12 +54,7 @@ class _URLTestData(object):
         if ("ppc64el" in self.url or
             "ppc64le" in self.url):
             return "ppc64le"
-        if "s390" in self.url:
-            return "s390x"
-        if ("x86_64" in self.url or
-            "amd64" in self.url):
-            return "x86_64"
-        return "x86_64"
+        return "s390x" if "s390" in self.url else "x86_64"
 
 testconn = utils.URIs.open_testdefault_cached()
 hvmguest = Guest(testconn)
@@ -76,9 +71,7 @@ elif utils.TESTCONFIG.url_force_libosinfo:
 
 
 def _sanitize_osdict_name(detectdistro):
-    if detectdistro in ["none", "None", None]:
-        return None
-    return detectdistro
+    return None if detectdistro in ["none", "None", None] else detectdistro
 
 
 def _skipmsg(testdata):
@@ -214,7 +207,7 @@ def _make_tests():
     manualpath = "~/.config/virt-manager/test_urls_manual.ini"
     cfg.read(os.path.expanduser(manualpath))
     if not os.path.exists(os.path.expanduser(manualpath)):
-        print("NOTE: Pass in manual data with %s" % manualpath)
+        print(f"NOTE: Pass in manual data with {manualpath}")
 
     urls = {}
     for name in cfg.sections():
@@ -222,7 +215,7 @@ def _make_tests():
         url = vals["url"]
 
         if "distro" not in vals:
-            print("url needs an explicit distro= value: %s" % url)
+            print(f"url needs an explicit distro= value: {url}")
             sys.exit(1)
         d = _URLTestData(name, url, vals["distro"],
                 vals.get("testxen", "0") == "1",
@@ -235,7 +228,8 @@ def _make_tests():
     for key, testdata in sorted(urls.items()):
         def _make_wrapper(d):
             return lambda: _testURL(d)
-        methodname = "test_URL%s" % key.replace("-", "_")
+
+        methodname = f'test_URL{key.replace("-", "_")}'
         globals()[methodname] = _make_wrapper(testdata)
 
 _make_tests()

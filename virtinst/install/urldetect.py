@@ -118,7 +118,7 @@ class _DistroCache(object):
             image_type = self.treeinfo.get("general", "arch")
             if typ == "xen":
                 image_type = "xen"
-            return self.treeinfo.get("images-%s" % image_type, media_name)
+            return self.treeinfo.get(f"images-{image_type}", media_name)
 
         try:
             return [(_get_treeinfo_path("kernel"),
@@ -189,7 +189,7 @@ class _SUSEContent(object):
         for line in self.content_str.splitlines():
             for prefix in ["LABEL", "DISTRO", "VERSION",
                            "BASEARCHS", "DEFAULTBASE", "REPOID"]:
-                if line.startswith(prefix + " "):
+                if line.startswith(f"{prefix} "):
                     self.content_dict[prefix] = line.split(" ", 1)[1]
 
         log.debug("SUSE content dict: %s", self.content_dict)
@@ -274,8 +274,7 @@ class _SUSEContent(object):
         if "Enterprise" in self.product_name or "SLES" in self.product_name:
             sle_version = self.product_name.strip().rsplit(' ')[4]
             if len(self.product_name.strip().rsplit(' ')) > 5:
-                sle_version = (sle_version + '.' +
-                        self.product_name.strip().rsplit(' ')[5][2])
+                sle_version = (f'{sle_version}.' + self.product_name.strip().rsplit(' ')[5][2])
             distro_version = sle_version
 
         return distro_version
@@ -302,14 +301,11 @@ def getDistroStore(guest, fetcher, skip_error):
     if skip_error:
         return None
 
-    # No distro was detected. See if the URL even resolves, and if not
-    # give the user a hint that maybe they mistyped. This won't always
-    # be true since some webservers don't allow directory listing.
-    # https://www.redhat.com/archives/virt-tools-list/2014-December/msg00048.html
-    extramsg = ""
-    if not fetcher.can_access():
-        extramsg = (": " +
-            _("The URL could not be accessed, maybe you mistyped?"))
+    extramsg = (
+        ""
+        if fetcher.can_access()
+        else (": " + _("The URL could not be accessed, maybe you mistyped?"))
+    )
 
     msg = (_("Could not find an installable distribution at URL '%s'") %
             fetcher.location)
@@ -338,11 +334,7 @@ class _DistroTree(object):
         self.uri = location
         self.cache = cache
 
-        if self.cache.libosinfo_os_variant:
-            self._os_variant = self.cache.libosinfo_os_variant
-        else:
-            self._os_variant = self._detect_version()
-
+        self._os_variant = self.cache.libosinfo_os_variant or self._detect_version()
         if (self._os_variant and
             not OSDB.lookup_os(self._os_variant)):
             log.debug("Detected os_variant as %s, which is not in osdict.",
@@ -426,7 +418,7 @@ class _FedoraDistro(_DistroTree):
             return latest_variant
 
         # treeinfo version is just an integer
-        variant = "fedora" + verstr
+        variant = f"fedora{verstr}"
         if OSDB.lookup_os(variant):
             return variant
 
@@ -463,7 +455,7 @@ class _RHELDistro(_DistroTree):
         # knows about rhel7.5
         base = self._variant_prefix + str(version)
         while update >= 0:
-            tryvar = base + ".%s" % update
+            tryvar = f"{base}.{update}"
             if OSDB.lookup_os(tryvar):
                 return tryvar
             update -= 1
@@ -507,12 +499,14 @@ class _SuseDistro(_RHELDistro):
                 log.debug("Error parsing SUSE content file: %s", str(e))
                 return False
 
-        if not cache.suse_content:
-            return False
-        for regex in cls._suse_regex:
-            if re.match(regex, cache.suse_content.product_name or ""):
-                return True
-        return False
+        return (
+            any(
+                re.match(regex, cache.suse_content.product_name or "")
+                for regex in cls._suse_regex
+            )
+            if cache.suse_content
+            else False
+        )
 
     def _set_manual_kernel_paths(self):
         # We only reach here if no treeinfo was matched
@@ -530,29 +524,29 @@ class _SuseDistro(_RHELDistro):
         if self.type == "xen":
             # Matches Opensuse > 10.2 and sles 10
             self._kernel_paths.append(
-                ("boot/%s/vmlinuz-xen" % tree_arch,
-                 "boot/%s/initrd-xen" % tree_arch))
+                (f"boot/{tree_arch}/vmlinuz-xen", f"boot/{tree_arch}/initrd-xen")
+            )
+
 
         if str(self._os_variant).startswith(("sles11", "sled11")):
-            if tree_arch == "s390x":
-                self._kernel_paths.append(
-                    ("boot/s390x/vmrdr.ikr", "boot/s390x/initrd"))
             if tree_arch == "ppc64":
                 self._kernel_paths.append(
                     ("suseboot/linux64", "suseboot/initrd64"))
 
+            elif tree_arch == "s390x":
+                self._kernel_paths.append(
+                    ("boot/s390x/vmrdr.ikr", "boot/s390x/initrd"))
         # Tested with SLES 12 for ppc64le, all s390x
         self._kernel_paths.append(
-            ("boot/%s/linux" % tree_arch,
-             "boot/%s/initrd" % tree_arch))
+            (f"boot/{tree_arch}/linux", f"boot/{tree_arch}/initrd")
+        )
+
         # Tested with Opensuse 10.0
-        self._kernel_paths.append(
-            ("boot/loader/%s" % oldkern,
-             "boot/loader/%s" % oldinit))
+        self._kernel_paths.append((f"boot/loader/{oldkern}", f"boot/loader/{oldinit}"))
         # Tested with Opensuse >= 10.2, 11, and sles 10
         self._kernel_paths.append(
-            ("boot/%s/loader/linux" % tree_arch,
-             "boot/%s/loader/initrd" % tree_arch))
+            (f"boot/{tree_arch}/loader/linux", f"boot/{tree_arch}/loader/initrd")
+        )
 
     def _detect_osdict_from_suse_content(self):
         if not self.cache.suse_content:
@@ -579,7 +573,7 @@ class _SuseDistro(_RHELDistro):
 
         for osobj in oses:
             codename = osobj.name[len(root):]
-            if re.search("/%s/" % codename, self.uri):
+            if re.search(f"/{codename}/", self.uri):
                 return osobj.name
 
     def _detect_from_treeinfo(self):
@@ -592,21 +586,18 @@ class _SuseDistro(_RHELDistro):
         base = self._variant_prefix + str(version)
         while update >= 0:
             tryvar = base
-            # SLE doesn't use '.0' for initial releases in
-            # osinfo-db (sles11, sles12, etc)
-            if update > 0 or not base.startswith('sle'):
-                tryvar += ".%s" % update
+            if update > 0 or not tryvar.startswith('sle'):
+                tryvar += f".{update}"
             if OSDB.lookup_os(tryvar):
                 return tryvar
             update -= 1
 
     def _detect_version(self):
-        var = self._detect_from_treeinfo()
-        if not var:
-            var = self._detect_osdict_from_url()
-        if not var:
-            var = self._detect_osdict_from_suse_content()
-        return var
+        return (
+            self._detect_from_treeinfo()
+            or self._detect_osdict_from_url()
+            or self._detect_osdict_from_suse_content()
+        )
 
 
 class _SLESDistro(_SuseDistro):
@@ -655,19 +646,14 @@ class _DebianDistro(_DistroTree):
             media_type = "legacy_url"
         elif check_manifest("daily/MANIFEST"):
             media_type = "daily"
-        elif cache.content_regex(".disk/info",
-                "%s.*" % cls._debname.capitalize()):
+        elif cache.content_regex(".disk/info", f"{cls._debname.capitalize()}.*"):
             # There's two cases here:
             # 1) Direct access ISO, attached as CDROM afterwards. We
             #    use one set of kernels in that case which seem to
             #    assume the prescence of CDROM media
             # 2) ISO mounted and exported over URL. We use a different
             #    set of kernels that expect to boot from the network
-            if cache.fetcher_is_iso():
-                media_type = "disk"
-            else:
-                media_type = "mounted_iso_url"
-
+            media_type = "disk" if cache.fetcher_is_iso() else "mounted_iso_url"
         if media_type:
             cache.debian_media_type = media_type
         return bool(media_type)
@@ -708,38 +694,38 @@ class _DebianDistro(_DistroTree):
         url_prefix = "current/images"
         if self.cache.debian_media_type == "daily":
             url_prefix = "daily"
-        elif self.cache.debian_media_type == "mounted_iso_url":
-            url_prefix = "install"
         elif self.cache.debian_media_type == "legacy_url":
             url_prefix = "current/legacy-images"
 
+        elif self.cache.debian_media_type == "mounted_iso_url":
+            url_prefix = "install"
         tree_arch = self._find_treearch()
-        hvmroot = "%s/netboot/%s-installer/%s/" % (url_prefix,
-                self._debname, tree_arch)
+        hvmroot = f"{url_prefix}/netboot/{self._debname}-installer/{tree_arch}/"
         initrd_basename = "initrd.gz"
         kernel_basename = "linux"
         if tree_arch in ["ppc64el"]:
             kernel_basename = "vmlinux"
 
         if tree_arch == "s390x":
-            hvmroot = "%s/generic/" % url_prefix
-            kernel_basename = "kernel.%s" % self._debname
-            initrd_basename = "initrd.%s" % self._debname
+            hvmroot = f"{url_prefix}/generic/"
+            kernel_basename = f"kernel.{self._debname}"
+            initrd_basename = f"initrd.{self._debname}"
 
 
         if self.type == "xen":
-            xenroot = "%s/netboot/xen/" % url_prefix
-            self._kernel_paths.append(
-                    (xenroot + "vmlinuz", xenroot + "initrd.gz"))
+            xenroot = f"{url_prefix}/netboot/xen/"
+            self._kernel_paths.append((f"{xenroot}vmlinuz", f"{xenroot}initrd.gz"))
         self._kernel_paths.append(
                 (hvmroot + kernel_basename, hvmroot + initrd_basename))
 
     def _set_installcd_paths(self):
         if self._debname == "ubuntu":
-            if not self.arch == "s390x":
-                kpair = ("install/vmlinuz", "install/initrd.gz")
-            else:
-                kpair = ("boot/kernel.ubuntu", "boot/initrd.ubuntu")
+            kpair = (
+                ("boot/kernel.ubuntu", "boot/initrd.ubuntu")
+                if self.arch == "s390x"
+                else ("install/vmlinuz", "install/initrd.gz")
+            )
+
         elif self.arch == "x86_64":
             kpair = ("install.amd/vmlinuz", "install.amd/initrd.gz")
         elif self.arch == "i686":
@@ -767,13 +753,13 @@ class _DebianDistro(_DistroTree):
             if osobj.codename:
                 # Ubuntu codenames look like 'Warty Warthog'
                 codename = osobj.codename.split()[0].lower()
-            else:
-                if " " not in osobj.label:
-                    continue  # pragma: no cover
+            elif " " in osobj.label:
                 # Debian labels look like 'Debian Sarge'
                 codename = osobj.label.split()[1].lower()
 
-            if ("/%s/" % codename) in self.uri:
+            else:
+                continue  # pragma: no cover
+            if f"/{codename}/" in self.uri:
                 log.debug("Found codename=%s in the URL string", codename)
                 return osobj.name
 
@@ -797,22 +783,22 @@ class _MageiaDistro(_DistroTree):
             if not content:
                 return False
 
-            m = re.match(r"^Mageia (\d+) .*", content)
-            if not m:
-                return False  # pragma: no cover
+            if m := re.match(r"^Mageia (\d+) .*", content):
+                cache.mageia_version = m[1]
 
-            cache.mageia_version = m.group(1)
+            else:
+                return False  # pragma: no cover
 
         return bool(cache.mageia_version)
 
     def _set_manual_kernel_paths(self):
         self._kernel_paths += [
-            ("isolinux/%s/vmlinuz" % self.arch,
-             "isolinux/%s/all.rdz" % self.arch)]
+            (f"isolinux/{self.arch}/vmlinuz", f"isolinux/{self.arch}/all.rdz")
+        ]
 
     def _detect_version(self):
         # version is just an integer
-        variant = "mageia" + self.cache.mageia_version
+        variant = f"mageia{self.cache.mageia_version}"
         if OSDB.lookup_os(variant):
             return variant
 
@@ -887,8 +873,9 @@ def _build_distro_list(osobj):
         else:
             log.debug("No matching store found, not prioritizing anything")
 
-    force_libosinfo = os.environ.get("VIRTINST_TEST_SUITE_FORCE_LIBOSINFO")
-    if force_libosinfo:  # pragma: no cover
+    if force_libosinfo := os.environ.get(
+        "VIRTINST_TEST_SUITE_FORCE_LIBOSINFO"
+    ):
         if bool(int(force_libosinfo)):
             allstores = [_LibosinfoDistro]
         else:

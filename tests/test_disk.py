@@ -60,7 +60,7 @@ def test_disk_dir_searchable(monkeypatch):
                     if s.model == "dac"][0]
         for baselabel in [b for b in secmodel.baselabels
                           if b.type in ["qemu", "kvm"]]:
-            baselabel.content = "+%s:+%s" % (uid, uid)
+            baselabel.content = f"+{uid}:+{uid}"
 
     tmpobj = tempfile.TemporaryDirectory(prefix="virtinst-test-search")
     tmpdir = tmpobj.name
@@ -79,8 +79,7 @@ def test_disk_dir_searchable(monkeypatch):
 
         # Use our uid, verify it shows we have expected access
         _set_caps_baselabel_uid(os.getuid())
-        searchdata = virtinst.DeviceDisk.check_path_search(conn,
-                tmpdir + "/footest")
+        searchdata = virtinst.DeviceDisk.check_path_search(conn, f"{tmpdir}/footest")
         assert searchdata.uid == os.getuid()
         assert searchdata.fixlist == []
 

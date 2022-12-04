@@ -55,7 +55,7 @@ class vmmVsockDetails(vmmGObjectUI):
 
         label = self.widget("vsock-auto").get_label().split(" (")[0]
         if is_auto and self.vm.is_active():
-            label += " (%s %s)" % (_("CID"), cid)
+            label += f' ({_("CID")} {cid})'
         self.widget("vsock-auto").set_label(label)
 
         self.widget("vsock-auto").set_active(is_auto)

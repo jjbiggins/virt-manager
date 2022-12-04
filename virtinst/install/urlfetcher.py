@@ -38,8 +38,11 @@ class _XorrisoReader():
 
     def grabFile(self, url, scratchdir):
         tmp = tempfile.NamedTemporaryFile(
-                prefix="virtinst-iso", suffix="-" + os.path.basename(url),
-                dir=scratchdir)
+            prefix="virtinst-iso",
+            suffix=f"-{os.path.basename(url)}",
+            dir=scratchdir,
+        )
+
 
         cmd = ["xorriso", "-osirrox", "on", "-indev", self._location,
                "-extract", url, tmp.name]
@@ -81,20 +84,14 @@ class _URLFetcher(object):
         Generate a full fetchable URL from the passed filename, which
         is relative to the self.location
         """
-        if not filename:
-            return self.location
-        return os.path.join(self.location, filename)
+        return os.path.join(self.location, filename) if filename else self.location
 
     def _grabURL(self, filename, fileobj, fullurl=None):
         """
         Download the filename from self.location, and write contents to
         fileobj
         """
-        if fullurl:
-            url = fullurl
-        else:
-            url = self._make_full_url(filename)
-
+        url = fullurl or self._make_full_url(filename)
         try:
             urlobj, size = self._grabber(url)
         except Exception as e:
@@ -182,8 +179,12 @@ class _URLFetcher(object):
         fn = None
         try:
             fileobj = tempfile.NamedTemporaryFile(
-                prefix="virtinst-", suffix="-" + os.path.basename(filename),
-                dir=self.scratchdir, delete=False)
+                prefix="virtinst-",
+                suffix=f"-{os.path.basename(filename)}",
+                dir=self.scratchdir,
+                delete=False,
+            )
+
             fn = fileobj.name
 
             self._grabURL(filename, fileobj, fullurl=fullurl)

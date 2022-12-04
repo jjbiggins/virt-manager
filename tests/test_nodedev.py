@@ -24,7 +24,7 @@ funky_chars_xml = """
 </device>
 """
 
-DATADIR = utils.DATADIR + "/nodedev/"
+DATADIR = f"{utils.DATADIR}/nodedev/"
 
 
 def _nodeDevFromName(conn, devname):

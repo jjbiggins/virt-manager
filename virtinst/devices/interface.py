@@ -26,12 +26,7 @@ def _random_mac(conn):
     @return: MAC address string
     """
 
-    if conn.is_qemu():
-        oui = [0x52, 0x54, 0x00]
-    else:
-        # Xen
-        oui = [0x00, 0x16, 0x3E]
-
+    oui = [0x52, 0x54, 0x00] if conn.is_qemu() else [0x00, 0x16, 0x3E]
     mac = oui + [
             random.randint(0x00, 0xff),
             random.randint(0x00, 0xff),
@@ -68,7 +63,7 @@ def _host_default_bridge():
         return None  # pragma: no cover
 
     # New style peth0 == phys dev, eth0 == bridge, eth0 == default route
-    if os.path.exists("/sys/class/net/%s/bridge" % dev):
+    if os.path.exists(f"/sys/class/net/{dev}/bridge"):
         return dev  # pragma: no cover
 
     # Old style, peth0 == phys dev, eth0 == netloop, xenbr0 == bridge,
@@ -160,7 +155,7 @@ class DeviceInterface(Device):
         if conn.fake_conn_predictable():
             return _testsuite_mac()
 
-        for ignore in range(256):
+        for _ in range(256):
             mac = _random_mac(conn)
             try:
                 DeviceInterface.check_mac_in_use(conn, mac)
@@ -211,9 +206,7 @@ class DeviceInterface(Device):
             return self.network
         if self.type == self.TYPE_BRIDGE:
             return self.bridge
-        if self.type == self.TYPE_DIRECT:
-            return self.source_dev
-        return None
+        return self.source_dev if self.type == self.TYPE_DIRECT else None
     def _set_source(self, newsource):
         """
         Convenience function, try to set the relevant <source> value
@@ -305,10 +298,7 @@ class DeviceInterface(Device):
 
         prefs = ["e1000", "rtl8139", "ne2k_pci", "pcnet"]
         supported_models = guest.osinfo.supported_netmodels()
-        for pref in prefs:
-            if pref in supported_models:
-                return pref
-        return "e1000"
+        return next((pref for pref in prefs if pref in supported_models), "e1000")
 
     def set_defaults(self, guest):
         if not self.type:

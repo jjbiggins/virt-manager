@@ -72,10 +72,7 @@ class _LibvirtEnumMap(object):
         elif status == libvirt.VIR_DOMAIN_SHUTDOWN:
             return _("Shutting Down")  # pragma: no cover
         elif status == libvirt.VIR_DOMAIN_SHUTOFF:
-            if has_managed_save:
-                return _("Saved")
-            else:
-                return _("Shutoff")
+            return _("Saved") if has_managed_save else _("Shutoff")
         elif status == libvirt.VIR_DOMAIN_CRASHED:
             return _("Crashed")
         elif status == libvirt.VIR_DOMAIN_PMSUSPENDED:
@@ -88,7 +85,8 @@ class _LibvirtEnumMap(object):
     @staticmethod
     def pretty_status_reason(status, reason):
         def key(x, y):
-            return getattr(libvirt, "VIR_DOMAIN_" + x, y)
+            return getattr(libvirt, f"VIR_DOMAIN_{x}", y)
+
         reasons = {
             libvirt.VIR_DOMAIN_RUNNING: {
                 key("RUNNING_BOOTED", 1):             _("Booted"),
@@ -161,9 +159,7 @@ class _LibvirtEnumMap(object):
         eventstr = str(event)
         detail1str = str(detail1)
         detail2str = str(detail2)
-        eventmap = self._get_map(api, self._EVENT_PREFIX[api])
-
-        if eventmap:
+        if eventmap := self._get_map(api, self._EVENT_PREFIX[api]):
             if event not in eventmap:
                 event = next(iter(eventmap))  # pragma: no cover
             eventstr = eventmap[event]
@@ -181,7 +177,7 @@ class _LibvirtEnumMap(object):
     def _state_str(self, api, detail1, detail2):
         ignore, d1str, d2str = self._make_strs(api, 0,
                 detail1, detail2)
-        return "state=%s reason=%s" % (d1str, d2str)
+        return f"state={d1str} reason={d2str}"
 
     def domain_lifecycle_str(self, detail1, detail2):
         return self._state_str(self.DOMAIN_EVENT, detail1, detail2)

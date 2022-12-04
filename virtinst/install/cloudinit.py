@@ -25,10 +25,11 @@ class CloudInitData():
 
     def _generate_password(self):
         if not self.generated_root_password:
-            self.generated_root_password = ""
-            for dummy in range(16):
-                self.generated_root_password += random.choice(
-                        string.ascii_letters + string.digits)
+            self.generated_root_password = "".join(
+                random.choice(string.ascii_letters + string.digits)
+                for _ in range(16)
+            )
+
         return self.generated_root_password
 
     def _get_password(self, pwdfile):
@@ -120,16 +121,19 @@ def create_files(scratchdir, cloudinit_data):
     userdata = _create_userdata_content(cloudinit_data)
 
     data = [(metadata, "meta-data"), (userdata, "user-data")]
-    network_config = _create_network_config_content(cloudinit_data)
-    if network_config:
+    if network_config := _create_network_config_content(cloudinit_data):
         data.append((network_config, 'network-config'))
 
     filepairs = []
     try:
         for content, destfile in data:
             fileobj = tempfile.NamedTemporaryFile(
-                    prefix="virtinst-", suffix=("-%s" % destfile),
-                    dir=scratchdir, delete=False)
+                prefix="virtinst-",
+                suffix=f"-{destfile}",
+                dir=scratchdir,
+                delete=False,
+            )
+
             filename = fileobj.name
             filepairs.append((filename, destfile))
 

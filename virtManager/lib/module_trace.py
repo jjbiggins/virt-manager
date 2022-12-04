@@ -59,7 +59,7 @@ def wrap_func(module, funcobj):
 
 def wrap_method(classobj, methodobj):
     name = methodobj.__name__
-    fullname = classobj.__name__ + "." + name
+    fullname = f"{classobj.__name__}.{name}"
     log.debug("wrapmeth %s", fullname)
 
     newfunc = generate_wrapper(methodobj, fullname)

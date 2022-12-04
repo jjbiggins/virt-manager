@@ -33,8 +33,7 @@ class DomainSeclabel(XMLBuilder):
             return caps_models and caps_models[0] or None
 
         lab_len = None
-        if self.label:
-            lab_len = min(3, len(self.label.split(':')))
+        lab_len = min(3, len(self.label.split(':')))
 
         if lab_len == 3:
             return self.MODEL_SELINUX

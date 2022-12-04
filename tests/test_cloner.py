@@ -11,7 +11,7 @@ from tests import utils
 from virtinst import Cloner
 
 
-CLI_XMLDIR = utils.DATADIR + "/cli/virtclone/"
+CLI_XMLDIR = f"{utils.DATADIR}/cli/virtclone/"
 
 
 def test_clone_unmanaged():
@@ -19,7 +19,7 @@ def test_clone_unmanaged():
     Test that unmanaged storage duplication via the clone wizard
     actually copies data
     """
-    xmlpath = CLI_XMLDIR + "clone-disk.xml"
+    xmlpath = f"{CLI_XMLDIR}clone-disk.xml"
     conn = utils.URIs.open_testdefault_cached()
     xml = open(xmlpath).read()
 

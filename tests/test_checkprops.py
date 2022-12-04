@@ -53,10 +53,9 @@ def testCheckCLISuboptions():
 
     # pylint: disable=protected-access
     from virtinst import cli
-    unchecked = cli._SuboptChecker.get_unseen()
-    if unchecked:
+    if unchecked := cli._SuboptChecker.get_unseen():
         msg = "\n\n"
-        msg += "\n".join(sorted(a for a in unchecked)) + "\n\n"
+        msg += "\n".join(sorted(iter(unchecked))) + "\n\n"
         msg += ("These command line arguments or aliases are not checked\n"
                "in the test suite. Please test them.\n"
                "Total unchecked arguments: %s" % len(unchecked))

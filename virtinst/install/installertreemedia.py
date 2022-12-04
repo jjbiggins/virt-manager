@@ -75,9 +75,7 @@ class InstallerTreeMedia(object):
         """
         Return the tmpdir that's accessible by VMs on system libvirt URIs
         """
-        if guest.conn.is_xen():
-            return "/var/lib/xen"
-        return "/var/lib/libvirt/boot"
+        return "/var/lib/xen" if guest.conn.is_xen() else "/var/lib/libvirt/boot"
 
     @staticmethod
     def make_scratchdir(guest):
@@ -115,7 +113,7 @@ class InstallerTreeMedia(object):
             if not location:
                 raise ValueError(_("location kernel/initrd may only "
                     "be specified with a location URL/path"))
-            if not (location_kernel and location_initrd):
+            if not location_kernel or not location_initrd:
                 raise ValueError(_("location kernel/initrd must be "
                     "be specified as a pair"))
 
@@ -136,9 +134,11 @@ class InstallerTreeMedia(object):
         else:
             self._media_type = MEDIA_ISO
 
-        if (self.conn.is_remote() and
-                not self._media_type == MEDIA_URL and
-            not self._media_type == MEDIA_KERNEL):
+        if (
+            self.conn.is_remote()
+            and self._media_type != MEDIA_URL
+            and self._media_type != MEDIA_KERNEL
+        ):
             raise ValueError(_("Cannot access install tree on remote "
                 "connection: %s") % self.location)
 
@@ -245,24 +245,18 @@ class InstallerTreeMedia(object):
         if unattended_scripts:
             args = []
             for unattended_script in unattended_scripts:
-                cmdline = unattended_script.generate_cmdline()
-                if cmdline:
+                if cmdline := unattended_script.generate_cmdline():
                     args.append(cmdline)
             install_args = (" ").join(args)
             log.debug("Generated unattended cmdline: %s", install_args)
         elif self.is_network_url():
-            kernel_url_arg = self._prepare_kernel_url_arg(guest, cache)
-            if kernel_url_arg:
-                install_args = "%s=%s" % (kernel_url_arg, self.location)
+            if kernel_url_arg := self._prepare_kernel_url_arg(guest, cache):
+                install_args = f"{kernel_url_arg}={self.location}"
 
         if install_args:
             self._extra_args.append(install_args)
 
-        if self._install_kernel_args:
-            ret = self._install_kernel_args
-        else:
-            ret = " ".join(self._extra_args)
-
+        ret = self._install_kernel_args or " ".join(self._extra_args)
         if self._media_type == MEDIA_DIR and not ret:
             log.warning(_("Directory tree installs typically do not work "
                 "unless extra kernel args are passed to point the "
@@ -320,7 +314,6 @@ class InstallerTreeMedia(object):
         if self._media_type in [MEDIA_URL, MEDIA_DIR]:
             return True
 
-        os_media = self.get_os_media(guest, meter)
-        if os_media:
+        if os_media := self.get_os_media(guest, meter):
             return os_media.is_netinst()
         return False

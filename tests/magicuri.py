@@ -34,16 +34,16 @@ def parse_options():
 
     capsfile = None
     domcapsfile = None
-    if hv == "qemu":
-        capsfile = capsdir + "kvm-x86_64.xml"
-        domcapsfile = capsdir + "kvm-x86_64-domcaps.xml"
-    elif hv == "xen":
-        capsfile = capsdir + "xen-rhel5.4.xml"
-    elif hv == "lxc":
-        capsfile = capsdir + "lxc.xml"
+    if hv == "lxc":
+        capsfile = f"{capsdir}lxc.xml"
+    elif hv == "qemu":
+        capsfile = f"{capsdir}kvm-x86_64.xml"
+        domcapsfile = f"{capsdir}kvm-x86_64-domcaps.xml"
     elif hv == "vz":
-        capsfile = capsdir + "vz.xml"
+        capsfile = f"{capsdir}vz.xml"
 
+    elif hv == "xen":
+        capsfile = f"{capsdir}xen-rhel5.4.xml"
     if options.capsfile:
         capsfile = os.path.abspath(options.capsfile)
     if options.domcapsfile:
@@ -58,22 +58,22 @@ def parse_options():
 
 def main():
     fakeuri, capsfile, domcapsfile, driverxml = parse_options()
-    uri = "__virtinst_test__test://%s" % driverxml
-    uri += ",fakeuri=%s" % fakeuri
+    uri = f"__virtinst_test__test://{driverxml}"
+    uri += f",fakeuri={fakeuri}"
 
     if capsfile:
-        uri += ",caps=%s" % capsfile
+        uri += f",caps={capsfile}"
     if domcapsfile:
-        uri += ",domcaps=%s" % domcapsfile
+        uri += f",domcaps={domcapsfile}"
 
     if driverxml and not os.path.exists(driverxml):
-        print("%s does not exist" % capsfile)
+        print(f"{capsfile} does not exist")
         return 1
     if capsfile and not os.path.exists(capsfile):
-        print("%s does not exist" % capsfile)
+        print(f"{capsfile} does not exist")
         return 1
     if domcapsfile and not os.path.exists(domcapsfile):
-        print("%s does not exist" % domcapsfile)
+        print(f"{domcapsfile} does not exist")
         return 1
 
     print(uri)

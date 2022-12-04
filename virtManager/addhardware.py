@@ -455,12 +455,10 @@ class vmmAddHardware(vmmGObjectUI):
 
     @staticmethod
     def controller_pretty_desc(dev):
-        if dev.type == DeviceController.TYPE_SCSI:
-            if dev.model == "virtio-scsi":
-                return _("VirtIO SCSI")
-        if dev.type == DeviceController.TYPE_PCI:
-            if dev.model == "pcie-root":
-                return _("PCIe")
+        if dev.type == DeviceController.TYPE_SCSI and dev.model == "virtio-scsi":
+            return _("VirtIO SCSI")
+        if dev.type == DeviceController.TYPE_PCI and dev.model == "pcie-root":
+            return _("PCIe")
         return vmmAddHardware.controller_pretty_type(dev.type)
 
     @staticmethod
@@ -469,15 +467,9 @@ class vmmAddHardware(vmmGObjectUI):
         if guest.os.is_hvm() or guest.conn.is_test():
             if not guest.os.is_q35():
                 ret.append("ide")
-            ret.append("sata")
-            ret.append("fdc")
-            ret.append("scsi")
-            ret.append("usb")
-
+            ret.extend(("sata", "fdc", "scsi", "usb"))
             if guest.type in ["qemu", "kvm", "test"]:
-                ret.append("sd")
-                ret.append("virtio")
-
+                ret.extend(("sd", "virtio"))
         if guest.conn.is_xen() or guest.conn.is_test():
             ret.append("xen")
 
@@ -539,7 +531,7 @@ class vmmAddHardware(vmmGObjectUI):
     def sound_pretty_model(model):
         ret = model.upper()
         if model in ["ich6", "ich9"]:
-            ret = "HDA (%s)" % model.upper()
+            ret = f"HDA ({model.upper()})"
         return ret
 
     @staticmethod
@@ -574,10 +566,10 @@ class vmmAddHardware(vmmGObjectUI):
 
         bus_label = bus_labels.get(bus, bus)
         typ_label = typ_labels.get(typ, typ)
-        # translators: Examples: 'USB Mouse', 'PS/2 Keyboard'
-        ret = _("%(input_bus)s %(input_type)s") % {
-                "input_bus": bus_label, "input_type": typ_label}
-        return ret
+        return _("%(input_bus)s %(input_type)s") % {
+            "input_bus": bus_label,
+            "input_type": typ_label,
+        }
 
     @staticmethod
     def interface_recommended_models(guest):
@@ -591,8 +583,7 @@ class vmmAddHardware(vmmGObjectUI):
             if guest.os.is_q35():
                 ret.append("e1000e")
             else:
-                ret.append("rtl8139")
-                ret.append("e1000")
+                ret.extend(("rtl8139", "e1000"))
         if guest.type in ["xen", "test"]:
             ret.append("netfront")
 
@@ -603,9 +594,7 @@ class vmmAddHardware(vmmGObjectUI):
     def redirdev_pretty_type(typ):
         if typ == "tcp":
             return "TCP"
-        if typ == "spicevmc":
-            return "SpiceVMC"
-        return typ and typ.capitalize()
+        return "SpiceVMC" if typ == "spicevmc" else typ and typ.capitalize()
 
     @staticmethod
     def video_recommended_models(guest):
@@ -638,19 +627,18 @@ class vmmAddHardware(vmmGObjectUI):
         label = hostdev.type.upper()
 
         if hostdev.vendor and hostdev.product:
-            label += " %s:%s" % (dehex(hostdev.vendor), dehex(hostdev.product))
+            label += f" {dehex(hostdev.vendor)}:{dehex(hostdev.product)}"
 
         elif hostdev.bus and hostdev.device:
-            label += " %s:%s" % (safeint(hostdev.bus), safeint(hostdev.device))
+            label += f" {safeint(hostdev.bus)}:{safeint(hostdev.device)}"
 
         elif (hostdev.bus and hostdev.slot and
               hostdev.function and hostdev.domain):
-            label += (" %s:%s:%s.%s" %
-                      (dehex(hostdev.domain), dehex(hostdev.bus),
-                       dehex(hostdev.slot), dehex(hostdev.function)))
+            label += f" {dehex(hostdev.domain)}:{dehex(hostdev.bus)}:{dehex(hostdev.slot)}.{dehex(hostdev.function)}"
+
 
         elif hostdev.uuid:
-            label += " %s" % (str(hostdev.uuid))
+            label += f" {str(hostdev.uuid)}"
 
         return label
 
@@ -732,9 +720,10 @@ class vmmAddHardware(vmmGObjectUI):
 
     @staticmethod
     def build_sound_combo(vm, combo):
-        values = []
-        for m in vmmAddHardware.sound_recommended_models(vm.xmlobj):
-            values.append([m, vmmAddHardware.sound_pretty_model(m)])
+        values = [
+            [m, vmmAddHardware.sound_pretty_model(m)]
+            for m in vmmAddHardware.sound_recommended_models(vm.xmlobj)
+        ]
 
         default = DeviceSound.default_model(vm.xmlobj)
         uiutil.build_simple_combo(combo, values, default_value=default)
@@ -778,15 +767,14 @@ class vmmAddHardware(vmmGObjectUI):
             if devtype == "pci":
                 for subdev in netdevs:
                     if dev.xmlobj.name == subdev.xmlobj.parent:
-                        prettyname += " (%s)" % subdev.pretty_name()
+                        prettyname += f" ({subdev.pretty_name()})"
 
             # parent device names are appended with mdev names in
             # libvirt 7.8.0
             if devtype == "mdev" and len(prettyname) <= 41:
                 for parentdev in self.conn.list_nodedevs():
                     if dev.xmlobj.parent == parentdev.xmlobj.name:
-                        prettyname = "%s %s" % (
-                                parentdev.pretty_name(), prettyname)
+                        prettyname = f"{parentdev.pretty_name()} {prettyname}"
 
             tooltip = None
             sensitive = dev.is_active()
@@ -808,9 +796,11 @@ class vmmAddHardware(vmmGObjectUI):
 
     @staticmethod
     def build_video_combo(vm, combo):
-        values = []
-        for m in vmmAddHardware.video_recommended_models(vm.xmlobj):
-            values.append([m, vmmAddHardware.video_pretty_model(m)])
+        values = [
+            [m, vmmAddHardware.video_pretty_model(m)]
+            for m in vmmAddHardware.video_recommended_models(vm.xmlobj)
+        ]
+
         if not values:
             values.append([None, _("Hypervisor default")])
         default = DeviceVideo.default_model(vm.xmlobj)
@@ -826,9 +816,7 @@ class vmmAddHardware(vmmGObjectUI):
         uiutil.build_simple_combo(self.widget("char-target-type"), values)
 
     def _build_char_target_name_combo(self):
-        values = []
-        for n in DeviceChannel.CHANNEL_NAMES:
-            values.append([n, n])
+        values = [[n, n] for n in DeviceChannel.CHANNEL_NAMES]
         uiutil.build_simple_combo(self.widget("char-target-name"), values)
 
     def _populate_char_device_type_combo(self):
@@ -837,22 +825,22 @@ class vmmAddHardware(vmmGObjectUI):
         model.clear()
 
         for t in vmmAddHardware.char_recommended_types(char_class):
-            model.append([t, vmmAddHardware.char_pretty_type(t) + " (%s)" % t])
+            model.append([t, f"{vmmAddHardware.char_pretty_type(t)} ({t})"])
         uiutil.set_list_selection(self.widget("char-device-type"), "pty")
 
 
     @staticmethod
     def build_watchdogmodel_combo(_vm, combo):
-        values = []
-        for m in DeviceWatchdog.MODELS:
-            values.append([m, m.upper()])
+        values = [[m, m.upper()] for m in DeviceWatchdog.MODELS]
         uiutil.build_simple_combo(combo, values, default_value=DeviceWatchdog.MODEL_I6300)
 
     @staticmethod
     def build_watchdogaction_combo(_vm, combo):
-        values = []
-        for m in DeviceWatchdog.ACTIONS:
-            values.append([m, vmmAddHardware.watchdog_pretty_action(m)])
+        values = [
+            [m, vmmAddHardware.watchdog_pretty_action(m)]
+            for m in DeviceWatchdog.ACTIONS
+        ]
+
         uiutil.build_simple_combo(combo, values, default_value=DeviceWatchdog.ACTION_RESET)
 
 
@@ -871,18 +859,20 @@ class vmmAddHardware(vmmGObjectUI):
 
 
     def _build_panic_model_combo(self):
-        values = []
-        for m in DevicePanic.get_models(self.vm.get_xmlobj()):
-            values.append([m, vmmAddHardware.panic_pretty_model(m)])
+        values = [
+            [m, vmmAddHardware.panic_pretty_model(m)]
+            for m in DevicePanic.get_models(self.vm.get_xmlobj())
+        ]
 
         default = DevicePanic.get_default_model(self.vm.get_xmlobj())
         uiutil.build_simple_combo(self.widget("panic-model"), values, default_value=default)
 
 
     def _build_controller_type_combo(self):
-        values = []
-        for t in vmmAddHardware.controller_recommended_types():
-            values.append([t, vmmAddHardware.controller_pretty_type(t)])
+        values = [
+            [t, vmmAddHardware.controller_pretty_type(t)]
+            for t in vmmAddHardware.controller_recommended_types()
+        ]
 
         uiutil.build_simple_combo(self.widget("controller-type"), values,
                 default_value=DeviceController.TYPE_SCSI)
@@ -894,8 +884,7 @@ class vmmAddHardware(vmmGObjectUI):
 
         rows = []
         if controller_type == DeviceController.TYPE_USB:
-            rows.append(["usb3", _("USB 3")])
-            rows.append(["ich9-ehci1", _("USB 2")])
+            rows.extend((["usb3", _("USB 3")], ["ich9-ehci1", _("USB 2")]))
         elif controller_type == DeviceController.TYPE_SCSI:
             rows.append(["virtio-scsi", _("VirtIO SCSI")])
         rows.append([None, _("Hypervisor default")])
@@ -911,18 +900,13 @@ class vmmAddHardware(vmmGObjectUI):
     #########################
 
     def _get_char_class(self):
-        row = self._get_hw_selection()
-        label = "serial"
-
-        if row:
-            label = row[5]
-
-        if label == "parallel":
-            return DeviceParallel
-        elif label == "channel":
+        label = row[5] if (row := self._get_hw_selection()) else "serial"
+        if label == "channel":
             return DeviceChannel
         elif label == "console":
             return DeviceConsole
+        elif label == "parallel":
+            return DeviceParallel
         return DeviceSerial
 
     def _set_hw_selection(self, page):
@@ -1018,11 +1002,8 @@ class vmmAddHardware(vmmGObjectUI):
             row = self._get_hw_selection()
             if row and row[5] == "pci":
                 return _("PCI Device")
-            if row and row[5] == "mdev":
-                return _("MDEV Device")
-            return _("USB Device")
-
-        raise RuntimeError("Unknown page %s" % page)  # pragma: no cover
+            return _("MDEV Device") if row and row[5] == "mdev" else _("USB Device")
+        raise RuntimeError(f"Unknown page {page}")
 
     def _set_page_title(self, page):
         title = self._dev_to_title(page)
@@ -1042,14 +1023,10 @@ class vmmAddHardware(vmmGObjectUI):
         model = widget.get_model()
         self.populate_disk_bus_combo(self.vm, devtype, model)
 
-        # By default, select bus of the first disk assigned to the VM
-        default_bus = None
-        for i in self.vm.xmlobj.devices.disk:
-            if i.device == devtype:
-                default_bus = i.bus
-                break
-
-        if default_bus:
+        if default_bus := next(
+            (i.bus for i in self.vm.xmlobj.devices.disk if i.device == devtype),
+            None,
+        ):
             uiutil.set_list_selection(widget, default_bus)
         elif len(model) > 0:
             widget.set_active(0)
@@ -1094,8 +1071,10 @@ class vmmAddHardware(vmmGObjectUI):
         elif text == DeviceChannel.CHANNEL_NAME_SPICE_WEBDAV:
             settype = "spiceport"
             self.widget("char-channel").set_text(text)
-        elif (text == DeviceChannel.CHANNEL_NAME_QEMUGA or
-              text == DeviceChannel.CHANNEL_NAME_LIBGUESTFS):
+        elif text in [
+            DeviceChannel.CHANNEL_NAME_QEMUGA,
+            DeviceChannel.CHANNEL_NAME_LIBGUESTFS,
+        ]:
             settype = "unix"
         if settype:
             uiutil.set_list_selection(
@@ -1160,7 +1139,7 @@ class vmmAddHardware(vmmGObjectUI):
         if controller_type == DeviceController.TYPE_USB:
             usb_controllers = [x for x in controllers if
                     (x.type == DeviceController.TYPE_USB)]
-            if (len(usb_controllers) == 0):
+            if not usb_controllers:
                 self.widget("create-finish").set_sensitive(True)
             elif (len(usb_controllers) == 1 and
                   usb_controllers[0].model == "none"):
@@ -1207,9 +1186,7 @@ class vmmAddHardware(vmmGObjectUI):
         log.debug("Adding device:\n%s", xml)
 
         if self._remove_usb_controller:
-            kwargs = {}
-            kwargs["model"] = self._selected_model
-
+            kwargs = {"model": self._selected_model}
             self.change_config_helper(self.vm.define_controller,
                     kwargs, self.vm, self.err,
                     devobj=self._remove_usb_controller)
@@ -1307,9 +1284,12 @@ class vmmAddHardware(vmmGObjectUI):
             return  # pragma: no cover
 
         for vm in self.conn.list_vms():
-            for hostdev in vm.xmlobj.devices.hostdev:
-                if nodedev.compare_to_hostdev(hostdev):
-                    names.append(vm.get_name())
+            names.extend(
+                vm.get_name()
+                for hostdev in vm.xmlobj.devices.hostdev
+                if nodedev.compare_to_hostdev(hostdev)
+            )
+
         if names:
             res = self.err.yes_no(
                     _('The device is already in use by other guests %s') %
@@ -1319,16 +1299,20 @@ class vmmAddHardware(vmmGObjectUI):
                 return False
 
     def _validate_device(self, dev):
-        if dev.DEVICE_TYPE == "disk":
-            if self.addstorage.validate_device(dev) is False:
-                return False
+        if (
+            dev.DEVICE_TYPE == "disk"
+            and self.addstorage.validate_device(dev) is False
+        ):
+            return False
 
         if dev.DEVICE_TYPE == "interface":
             self._netlist.validate_device(dev)
 
-        if dev.DEVICE_TYPE == "hostdev":
-            if self._validate_hostdev_collision(dev) is False:
-                return False
+        if (
+            dev.DEVICE_TYPE == "hostdev"
+            and self._validate_hostdev_collision(dev) is False
+        ):
+            return False
 
         dev.validate()
 
@@ -1443,8 +1427,7 @@ class vmmAddHardware(vmmGObjectUI):
         if self.widget("mac-address").get_active():
             mac = self.widget("create-mac-address").get_text()
 
-        dev = self._netlist.build_device(mac, model)
-        return dev
+        return self._netlist.build_device(mac, model)
 
     def _build_input(self):
         typ, bus = uiutil.get_list_selection(self.widget("input-type"))
@@ -1557,10 +1540,10 @@ class vmmAddHardware(vmmGObjectUI):
             dev = DeviceController(self.conn.get_backend())
 
         controllers = self.vm.xmlobj.devices.controller
-        controller_num = [x for x in controllers if
-                (x.type == controller_type)]
-        if len(controller_num) > 0:
-            index_new = max([x.index for x in controller_num]) + 1
+        if controller_num := [
+            x for x in controllers if (x.type == controller_type)
+        ]:
+            index_new = max(x.index for x in controller_num) + 1
             dev.index = index_new
 
         dev.type = controller_type

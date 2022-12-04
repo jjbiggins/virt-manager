@@ -37,18 +37,10 @@ def get_list_selected_row(widget, check_visible=False):
     if hasattr(widget, "get_selection"):
         selection = widget.get_selection()
         model, treeiter = selection.get_selected()
-        if treeiter is None:
-            return None
-
-        row = model[treeiter]
+        return None if treeiter is None else model[treeiter]
     else:
         idx = widget.get_active()
-        if idx == -1:
-            return None
-
-        row = widget.get_model()[idx]
-
-    return row
+        return None if idx == -1 else widget.get_model()[idx]
 
 
 def get_list_selection(widget, column=0,
@@ -65,9 +57,12 @@ def get_list_selection(widget, column=0,
     if row is not None:
         return row[column]
 
-    if check_entry and hasattr(widget, "get_has_entry"):
-        if widget.get_has_entry():
-            return widget.get_child().get_text().strip()
+    if (
+        check_entry
+        and hasattr(widget, "get_has_entry")
+        and widget.get_has_entry()
+    ):
+        return widget.get_child().get_text().strip()
 
     return None
 
@@ -97,12 +92,7 @@ def set_list_selection(widget, value, column=0):
     a text entry, set the text entry to the passed value.
     """
     model = widget.get_model()
-    _iter = None
-    for row in model:
-        if row[column] == value:
-            _iter = row.iter
-            break
-
+    _iter = next((row.iter for row in model if row[column] == value), None)
     if not _iter:
         if hasattr(widget, "get_has_entry") and widget.get_has_entry():
             widget.get_child().set_text(value or "")
@@ -144,7 +134,7 @@ def set_grid_row_visible(child, visible):
     """
     parent = child.get_parent()
     if not isinstance(parent, Gtk.Grid):
-        raise xmlutil.DevError("parent must be grid, not %s" % type(parent))
+        raise xmlutil.DevError(f"parent must be grid, not {type(parent)}")
 
     row = child_get_property(parent, child, "top-attach")
     for c in parent.get_children():

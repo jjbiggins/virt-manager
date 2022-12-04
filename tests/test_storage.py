@@ -19,7 +19,7 @@ def createPool(conn, ptype, poolname=None, fmt=None, target_path=None,
                source_path=None, source_name=None, iqn=None):
 
     if poolname is None:
-        poolname = StoragePool.find_free_name(conn, "%s-pool" % ptype)
+        poolname = StoragePool.find_free_name(conn, f"{ptype}-pool")
 
     pool_inst = StoragePool(conn)
     pool_inst.name = poolname
@@ -51,7 +51,7 @@ def removePool(poolobj):
 
 def poolCompare(pool_inst):
     pool_inst.validate()
-    filename = os.path.join(BASEPATH, pool_inst.name + ".xml")
+    filename = os.path.join(BASEPATH, f"{pool_inst.name}.xml")
     out_expect = pool_inst.get_xml()
 
     if not os.path.exists(filename):
@@ -63,7 +63,7 @@ def poolCompare(pool_inst):
 
 def createVol(conn, poolobj, volname=None, input_vol=None, clone_vol=None):
     if volname is None:
-        volname = poolobj.name() + "-vol"
+        volname = f"{poolobj.name()}-vol"
 
     alloc = 5 * 1024 * 1024 * 1024
     cap = 10 * 1024 * 1024 * 1024
@@ -85,7 +85,7 @@ def createVol(conn, poolobj, volname=None, input_vol=None, clone_vol=None):
         vol_inst.name = volname
 
     vol_inst.validate()
-    filename = os.path.join(BASEPATH, vol_inst.name + ".xml")
+    filename = os.path.join(BASEPATH, f"{vol_inst.name}.xml")
 
     # Format here depends on libvirt-7.2.0 and later
     if clone_vol and conn.local_libvirt_version() < 7002000:
@@ -105,10 +105,8 @@ def testDirPool():
     poolobj = createPool(conn,
                          StoragePool.TYPE_DIR, "pool-dir2")
     invol = createVol(conn, poolobj)
-    createVol(conn, poolobj,
-              volname=invol.name() + "input", input_vol=invol)
-    createVol(conn, poolobj,
-              volname=invol.name() + "clone", clone_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}input", input_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}clone", clone_vol=invol)
     removePool(poolobj)
 
 
@@ -117,10 +115,8 @@ def testFSPool():
     poolobj = createPool(conn,
                          StoragePool.TYPE_FS, "pool-fs")
     invol = createVol(conn, poolobj)
-    createVol(conn, poolobj,
-              volname=invol.name() + "input", input_vol=invol)
-    createVol(conn, poolobj,
-              volname=invol.name() + "clone", clone_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}input", input_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}clone", clone_vol=invol)
     removePool(poolobj)
 
 
@@ -129,10 +125,8 @@ def testNetFSPool():
     poolobj = createPool(conn,
                          StoragePool.TYPE_NETFS, "pool-netfs")
     invol = createVol(conn, poolobj)
-    createVol(conn, poolobj,
-              volname=invol.name() + "input", input_vol=invol)
-    createVol(conn, poolobj,
-              volname=invol.name() + "clone", clone_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}input", input_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}clone", clone_vol=invol)
     removePool(poolobj)
 
 
@@ -143,10 +137,8 @@ def testLVPool():
                          "pool-logical",
                          source_name="pool-logical")
     invol = createVol(conn, poolobj)
-    createVol(conn, poolobj,
-              volname=invol.name() + "input", input_vol=invol)
-    createVol(conn,
-              poolobj, volname=invol.name() + "clone", clone_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}input", input_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}clone", clone_vol=invol)
     removePool(poolobj)
 
     # Test parsing source name for target path
@@ -169,10 +161,8 @@ def testDiskPool():
                          "pool-disk", fmt="auto",
                          target_path="/some/target/path")
     invol = createVol(conn, poolobj)
-    createVol(conn, poolobj,
-              volname=invol.name() + "input", input_vol=invol)
-    createVol(conn, poolobj,
-              volname=invol.name() + "clone", clone_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}input", input_vol=invol)
+    createVol(conn, poolobj, volname=f"{invol.name()}clone", clone_vol=invol)
     removePool(poolobj)
 
 

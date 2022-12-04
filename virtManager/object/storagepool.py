@@ -102,7 +102,7 @@ class vmmStorageVolume(vmmLibvirtObject):
         key = self.get_key()
         ret = name
         if key:
-            ret += " (%s)" % key
+            ret += f" ({key})"
         return ret
 
 
@@ -133,7 +133,7 @@ class vmmStoragePool(vmmLibvirtObject):
 
     @staticmethod
     def pretty_type(pool_type):
-        return POOL_TYPE_DESCS.get(pool_type, "%s pool" % pool_type)
+        return POOL_TYPE_DESCS.get(pool_type, f"{pool_type} pool")
 
     @staticmethod
     def list_types():
@@ -256,9 +256,10 @@ class vmmStoragePool(vmmLibvirtObject):
         if not force and self._volumes is not None:
             return
 
-        keymap = dict((o.get_name(), o) for o in self._volumes or [])
+        keymap = {o.get_name(): o for o in self._volumes or []}
         def cb(obj, key):
             return vmmStorageVolume(self.conn, obj, key)
+
         (dummy1, dummy2, allvols) = pollhelpers.fetch_volumes(
             self.conn.get_backend(), self.get_backend(), keymap, cb)
         self._volumes = allvols

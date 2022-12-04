@@ -91,8 +91,10 @@ class vmmMediaCombo(vmmGObjectUI):
     def _make_nodedev_rows(self, media_type):
         rows = []
         for nodedev in self.conn.filter_nodedevs("storage"):
-            if not (nodedev.xmlobj.device_type == "storage" and
-                    nodedev.xmlobj.drive_type in ["cdrom", "floppy"]):
+            if (
+                nodedev.xmlobj.device_type != "storage"
+                or nodedev.xmlobj.drive_type not in ["cdrom", "floppy"]
+            ):
                 continue
             if nodedev.xmlobj.drive_type != media_type:
                 continue
@@ -100,7 +102,7 @@ class vmmMediaCombo(vmmGObjectUI):
             media_label = nodedev.xmlobj.media_label or _("Media Unknown")
             if not nodedev.xmlobj.media_available:
                 media_label = _("No media detected")
-            label = "%s (%s)" % (media_label, nodedev.xmlobj.block)
+            label = f"{media_label} ({nodedev.xmlobj.block})"
 
             row = self._make_row(nodedev.xmlobj.block, label,
                     nodedev.xmlobj.media_available,
@@ -160,10 +162,7 @@ class vmmMediaCombo(vmmGObjectUI):
         for row in self._iso_rows:
             model.append(row)
 
-        nodedev_rows = self._cdrom_rows
-        if is_floppy:
-            nodedev_rows = self._floppy_rows
-
+        nodedev_rows = self._floppy_rows if is_floppy else self._cdrom_rows
         if len(model) and nodedev_rows:
             model.append(self._make_row(None, None, False, None))
         for row in nodedev_rows:

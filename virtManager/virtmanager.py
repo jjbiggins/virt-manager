@@ -30,7 +30,7 @@ _PYGOBJECT_VERSION = "3.31.3"
 try:
     gi.check_version(_PYGOBJECT_VERSION)
 except (ValueError, AttributeError):  # pragma: no cover
-    print("pygobject3 %s or later is required." % _PYGOBJECT_VERSION)
+    print(f"pygobject3 {_PYGOBJECT_VERSION} or later is required.")
     sys.exit(1)
 
 
@@ -87,11 +87,11 @@ def _setup_gsettings_path(schemadir):
     import subprocess
     import shutil
 
-    exe = shutil.which("glib-compile-schemas")
-    if not exe:  # pragma: no cover
+    if exe := shutil.which("glib-compile-schemas"):
+        subprocess.check_call([exe, "--strict", schemadir])
+    else:
         raise RuntimeError("You must install glib-compile-schemas to run "
             "virt-manager from git.")
-    subprocess.check_call([exe, "--strict", schemadir])
 
 
 def drop_tty():
@@ -107,7 +107,7 @@ def drop_tty():
 
 def drop_stdio():
     # This is part of the fork process described in drop_tty()
-    for fd in range(0, 2):
+    for fd in range(2):
         try:
             os.close(fd)
         except OSError:  # pragma: no cover

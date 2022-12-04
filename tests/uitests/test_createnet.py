@@ -10,8 +10,7 @@ from . import lib
 
 def _open_netadd(app, hostwin):
     hostwin.find("net-add", "push button").click()
-    win = app.find_window("Create a new virtual network")
-    return win
+    return app.find_window("Create a new virtual network")
 
 
 def testCreateNet(app):
@@ -72,7 +71,7 @@ def testCreateNetXMLEditor(app):
     name.set_text(tmpname)
     win.find("XML", "page tab").click()
     xmleditor = win.find("XML editor")
-    newtext = xmleditor.text.replace(">%s<" % tmpname, ">%s<" % newname)
+    newtext = xmleditor.text.replace(f">{tmpname}<", f">{newname}<")
     xmleditor.set_text(newtext)
     finish.click()
     lib.utils.check(lambda: hostwin.active)

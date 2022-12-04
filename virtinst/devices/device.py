@@ -61,11 +61,11 @@ class DeviceAddress(XMLBuilder):
                        "function", "target", "unit", "multifunction"]
 
     def pretty_desc(self):
-        pretty_desc = None
-        if self.type == self.ADDRESS_TYPE_DRIVE:
-            pretty_desc = ("%s:%s:%s:%s" %
-                            (self.controller, self.bus, self.target, self.unit))
-        return pretty_desc
+        return (
+            f"{self.controller}:{self.bus}:{self.target}:{self.unit}"
+            if self.type == self.ADDRESS_TYPE_DRIVE
+            else None
+        )
 
 
     type = XMLProperty("./@type")

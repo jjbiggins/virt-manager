@@ -48,11 +48,15 @@ class _CapsHost(XMLBuilder):
             if secmodel.model != "dac":
                 continue
 
-            label = None
-            for baselabel in secmodel.baselabels:
-                if baselabel.type in ["qemu", "kvm"]:
-                    label = baselabel.content
-                    break
+            label = next(
+                (
+                    baselabel.content
+                    for baselabel in secmodel.baselabels
+                    if baselabel.type in ["qemu", "kvm"]
+                ),
+                None,
+            )
+
             if not label:
                 continue  # pragma: no cover
 
@@ -134,19 +138,13 @@ class _CapsGuest(XMLBuilder):
         Determine if machine @src is an alias for machine @tgt
         """
         mobjs = (domain and domain.machines) or self.machines
-        for m in mobjs:
-            if m.name == src and m.canonical == tgt:
-                return True
-        return False
+        return any(m.name == src and m.canonical == tgt for m in mobjs)
 
     def is_kvm_available(self):
         """
         Return True if kvm guests can be installed
         """
-        for d in self.domains:
-            if d.hypervisor_type == "kvm":
-                return True
-        return False
+        return any(d.hypervisor_type == "kvm" for d in self.domains)
 
     def supports_pae(self):
         """
@@ -250,10 +248,7 @@ class Capabilities(XMLBuilder):
         """
         Return True if there are any install options available
         """
-        for guest in self.guests:
-            if guest.domains:
-                return True
-        return False
+        return any(guest.domains for guest in self.guests)
 
     def guest_lookup(self, os_type=None, arch=None, typ=None, machine=None):
         """
@@ -318,5 +313,4 @@ class Capabilities(XMLBuilder):
                          'arch': guest.arch})
             raise ValueError(msg)
 
-        capsinfo = _CapsInfo(self.conn, guest, domain)
-        return capsinfo
+        return _CapsInfo(self.conn, guest, domain)

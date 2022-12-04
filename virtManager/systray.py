@@ -71,9 +71,7 @@ def _has_appindicator_dbus():  # pragma: no cover
                 "org.freedesktop.DBus", None)
         if dbus.NameHasOwner("(s)", "org.kde.StatusNotifierWatcher"):
             return True
-        if dbus.NameHasOwner("(s)", "org.freedesktop.StatusNotifierWatcher"):
-            return True
-        return False
+        return bool(dbus.NameHasOwner("(s)", "org.freedesktop.StatusNotifierWatcher"))
     except Exception:
         log.exception("Error checking for appindicator dbus")
         return False
@@ -125,10 +123,11 @@ class _SystrayIndicator(_Systray):  # pragma: no cover
         self._icon.set_secondary_activate_target(hide_item)
 
     def is_embedded(self):
-        if not self._icon.get_property("connected"):
-            return False
-        return (self._icon.get_status() !=
-                AppIndicator3.IndicatorStatus.PASSIVE)
+        return (
+            (self._icon.get_status() != AppIndicator3.IndicatorStatus.PASSIVE)
+            if self._icon.get_property("connected")
+            else False
+        )
 
     def show(self):
         self._icon.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
@@ -279,7 +278,7 @@ class _TrayMainMenu(vmmGObject):
         label = menu_item.get_child()
         if conn.is_active():
             label = menu_item.get_child()
-            markup = "<b>%s</b>" % xmlutil.xml_escape(conn.get_pretty_desc())
+            markup = f"<b>{xmlutil.xml_escape(conn.get_pretty_desc())}</b>"
             label.set_markup(markup)
         else:
             label.set_text(conn.get_pretty_desc())
@@ -300,7 +299,7 @@ class _TrayMainMenu(vmmGObject):
 
         # Group active conns first
         # Sort by pretty desc within those categories
-        sortkey = str(int(bool(not conn.is_active())))
+        sortkey = str(int(not conn.is_active()))
         sortkey += conn.get_pretty_desc().lower()
         self._set_sortkey(menu_item, sortkey)
 
@@ -363,8 +362,7 @@ class _TrayMainMenu(vmmGObject):
         self._menu.insert(connmenu, idx)
 
     def conn_remove(self, uri):
-        connmenu = self._find_conn_menuitem(uri)
-        if connmenu:
+        if connmenu := self._find_conn_menuitem(uri):
             self._menu.remove(connmenu)
             connmenu.destroy()
 

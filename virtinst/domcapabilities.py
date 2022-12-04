@@ -205,9 +205,11 @@ def _lookup_cpu_security_features(domcaps):
             log.warning(_("Failed to get expanded CPU XML: %s"), e)
             break
 
-        for feature in cpu.features:
-            if feature.name in sec_features:
-                ret.append(feature.name)
+        ret.extend(
+            feature.name
+            for feature in cpu.features
+            if feature.name in sec_features
+        )
 
     log.debug("Found host-model security features: %s", ret)
     return ret
@@ -248,10 +250,11 @@ class DomainCapabilities(XMLBuilder):
                 log.debug("Error fetching domcapabilities XML",
                     exc_info=True)
 
-        if not xml:
-            # If not supported, just use a stub object
-            return DomainCapabilities(conn)
-        return DomainCapabilities(conn, parsexml=xml)
+        return (
+            DomainCapabilities(conn, parsexml=xml)
+            if xml
+            else DomainCapabilities(conn)
+        )
 
     @staticmethod
     def build_from_guest(guest):
@@ -318,10 +321,7 @@ class DomainCapabilities(XMLBuilder):
         about it or not
         """
         if not path:
-            if self.arch in ["i686", "x86_64"]:
-                return _("BIOS")
-            return _("Default")
-
+            return _("BIOS") if self.arch in ["i686", "x86_64"] else _("Default")
         for arch, patterns in self._uefi_arch_patterns.items():
             for pattern in patterns:
                 if re.match(pattern, path):
@@ -376,10 +376,7 @@ class DomainCapabilities(XMLBuilder):
 
         for m in self.cpu.modes:
             if m.name == "custom" and m.supported:
-                for model in m.models:
-                    if model.usable != "no":
-                        models.append(model.model)
-
+                models.extend(model.model for model in m.models if model.usable != "no")
         return models
 
     _features = None
@@ -412,11 +409,11 @@ class DomainCapabilities(XMLBuilder):
         return self.devices.video.get_enum("modelType").has_value("bochs")
 
     def supports_video_qxl(self):
-        if not self.devices.video.has_enum("modelType"):
-            # qxl long predates modelType in domcaps, so if it is missing,
-            # use spice support as a rough value
-            return self.supports_graphics_spice()
-        return self.devices.video.get_enum("modelType").has_value("qxl")
+        return (
+            self.devices.video.get_enum("modelType").has_value("qxl")
+            if self.devices.video.has_enum("modelType")
+            else self.supports_graphics_spice()
+        )
 
     def supports_video_virtio(self):
         return self.devices.video.get_enum("modelType").has_value("virtio")
@@ -436,16 +433,15 @@ class DomainCapabilities(XMLBuilder):
             # https://gitlab.com/libvirt/libvirt/-/issues/329
             return False
 
-        return len(models) > 0 and bool("emulator" in backends)
+        return len(models) > 0 and "emulator" in backends
 
     def supports_graphics_spice(self):
         if not self.devices.graphics.supported:
-            # domcaps is too old, or the driver doesn't advertise graphics
-            # support. Use our pre-existing logic
-            if not self.conn.is_qemu() and not self.conn.is_test():
-                return False
-            return self.conn.caps.host.cpu.arch in ["i686", "x86_64"]
+            if self.conn.is_qemu() or self.conn.is_test():
+                return self.conn.caps.host.cpu.arch in ["i686", "x86_64"]
 
+            else:
+                return False
         return self.devices.graphics.get_enum("type").has_value("spice")
 
     def supports_filesystem_virtiofs(self):

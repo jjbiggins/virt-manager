@@ -55,7 +55,7 @@ def testMigrateQemu(app):
 
 def testMigrateXen(app):
     # Use fake xen connections
-    app.uri = tests.utils.URIs.test_full + ",fakeuri=xen:///"
+    app.uri = f"{tests.utils.URIs.test_full},fakeuri=xen:///"
 
     fakeremotexen = (tests.utils.URIs.test_default +
             ",fakeuri=xen+tcp://fakehost/")
@@ -99,7 +99,7 @@ def testMigrateConnMismatch(app):
     app.manager_conn_disconnect("test default")
 
     # Add a mismatched hv connection
-    fakexen = tests.utils.URIs.test_empty + ",fakeuri=xen:///"
+    fakexen = f"{tests.utils.URIs.test_empty},fakeuri=xen:///"
     app.manager_createconn(fakexen)
 
     # Open dialog and confirm no conns are available
@@ -133,8 +133,7 @@ def testMigrateXMLEditor(app):
     newname = "aafroofroo"
     win.find("XML", "page tab").click()
     xmleditor = win.find("XML editor")
-    newtext = xmleditor.text.replace(
-            ">%s<" % vmname, ">%s<" % newname)
+    newtext = xmleditor.text.replace(f">{vmname}<", f">{newname}<")
     xmleditor.set_text(newtext)
     win.find("Migrate", "push button").click()
     lib.utils.check(lambda: not win.showing, timeout=10)

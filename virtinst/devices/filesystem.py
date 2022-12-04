@@ -128,13 +128,7 @@ class DeviceFilesystem(Device):
             self.validate_target(self.target)
 
     def default_accessmode(self):
-        if self.driver_type == "virtiofs":
-            # let libvirt fill in default accessmode=passthrough
-            return None
-        # libvirt qemu defaults to accessmode=passthrough, but that
-        # really only works well for qemu running as root, which is
-        # not the common case. so use mode=mapped
-        return self.MODE_MAPPED
+        return None if self.driver_type == "virtiofs" else self.MODE_MAPPED
 
 
     ##################

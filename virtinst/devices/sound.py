@@ -31,9 +31,7 @@ class DeviceSound(Device):
 
     @staticmethod
     def default_model(guest):
-        if guest.defaults_to_pcie():
-            return "ich9"
-        return "ich6"
+        return "ich9" if guest.defaults_to_pcie() else "ich6"
 
     def set_defaults(self, guest):
         if not self.model:

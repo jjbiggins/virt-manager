@@ -43,14 +43,14 @@ def _pretty_network_desc(nettype, source=None, netobj=None):
     if nettype == virtinst.DeviceInterface.TYPE_VIRTUAL:
         ret = _("Virtual network")
         if netobj:
-            extra = ": %s" % netobj.pretty_forward_mode()
+            extra = f": {netobj.pretty_forward_mode()}"
     else:
         ret = nettype.capitalize()
 
     if source:
         ret += " '%s'" % source
     if extra:
-        ret += " %s" % extra
+        ret += f" {extra}"
 
     return ret
 
@@ -118,7 +118,7 @@ class vmmNetworkList(vmmGObjectUI):
 
             label = _pretty_network_desc(nettype, net.get_name(), net)
             if not net.is_active():
-                label += " (%s)" % _("Inactive")
+                label += f' ({_("Inactive")})'
 
             if net.get_xmlobj().virtualport_type == "openvswitch":
                 label += " (OpenVSwitch)"
@@ -185,13 +185,12 @@ class vmmNetworkList(vmmGObjectUI):
 
     def _check_network_is_running(self, net):
         # Make sure VirtualNetwork is running
-        if not net.type == virtinst.DeviceInterface.TYPE_VIRTUAL:
+        if net.type != virtinst.DeviceInterface.TYPE_VIRTUAL:
             return
         devname = net.source
 
         netobj = None
-        if net.type == virtinst.DeviceInterface.TYPE_VIRTUAL:
-            netobj = self.conn.get_net_by_name(devname)
+        netobj = self.conn.get_net_by_name(devname)
 
         if not netobj or netobj.is_active():
             return
@@ -281,12 +280,8 @@ class vmmNetworkList(vmmGObjectUI):
         if net_check_manual:
             net_src = self.widget("net-manual-source").get_text() or None
 
-        mode = None
         is_direct = (net_type == virtinst.DeviceInterface.TYPE_DIRECT)
-        if is_direct:
-            # This is generally the safest and most featureful default
-            mode = "bridge"
-
+        mode = "bridge" if is_direct else None
         portgroup = None
         if self.widget("net-portgroup").is_visible():
             portgroup = uiutil.get_list_selection(self.widget("net-portgroup"))
@@ -352,9 +347,8 @@ class vmmNetworkList(vmmGObjectUI):
             return  # pragma: no cover
 
         try:
-            if model:
-                netlist.set_model(None)
-                default_idx = self._populate_network_model(model)
+            netlist.set_model(None)
+            default_idx = self._populate_network_model(model)
         finally:
             netlist.set_model(model)
 

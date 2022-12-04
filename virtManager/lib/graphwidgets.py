@@ -25,7 +25,7 @@ def _line_helper(cairo_ct, bottom_baseline, points, for_fill=False):
     for index, (x, y) in enumerate(points):
 
         # If stats value == 0, we don't want to draw a line
-        is_zero = bool(y == bottom_baseline)
+        is_zero = y == bottom_baseline
 
         # If the line is for filling, alter the coords so that fill covers
         # the same area as the parent sparkline: fill is one pixel short
@@ -38,9 +38,7 @@ def _line_helper(cairo_ct, bottom_baseline, points, for_fill=False):
             elif last_was_zero and is_zero:
                 y += 1
 
-        if index == 0:
-            cairo_ct.move_to(x, y)
-        elif last_was_zero and is_zero and not for_fill:
+        if index == 0 or last_was_zero and is_zero and not for_fill:
             cairo_ct.move_to(x, y)
         else:
             cairo_ct.line_to(x, y)
@@ -55,13 +53,12 @@ def draw_line(cairo_ct, y, h, points):
     if not len(points):
         return  # pragma: no cover
 
-    last_point = _line_helper(cairo_ct, y + h, points)
-    if not last_point:
+    if last_point := _line_helper(cairo_ct, y + h, points):
+        # Paint the line
+        cairo_ct.stroke()
+    else:
         # Nothing to draw
         return
-
-    # Paint the line
-    cairo_ct.stroke()
 
 
 def draw_fill(cairo_ct, x, y, w, h, points, taper=False):
@@ -71,11 +68,7 @@ def draw_fill(cairo_ct, x, y, w, h, points, taper=False):
     _line_helper(cairo_ct, y + h, points, for_fill=True)
 
     baseline_y = h + y + 1
-    if taper:
-        start_x = w + x
-    else:
-        start_x = points[-1][0]
-
+    start_x = w + x if taper else points[-1][0]
     # Box out the area to fill
     cairo_ct.line_to(start_x + 1, baseline_y)
     cairo_ct.line_to(x - 1, baseline_y)
@@ -187,7 +180,7 @@ class CellRendererSparkline(Gtk.CellRenderer):
             return y
 
         points = []
-        for index in range(0, len(self.data_array)):
+        for index in range(len(self.data_array)):
             x = int(((index * pixels_per_point) + graph_x))
             y = int(get_y(index))
 
@@ -321,23 +314,19 @@ class Sparkline(Gtk.DrawingArea):
             baseline_y = h
 
             n = dataset * points_per_set
-            if self.reversed:
-                n += (points_per_set - index - 1)
-            else:
-                n += index
-
+            n += (points_per_set - index - 1) if self.reversed else index
             val = self.data_array[n]
             return baseline_y - ((h - 1) * val)
 
         cr.set_line_width(2)
 
-        for dataset in range(0, self.num_sets):
+        for dataset in range(self.num_sets):
             if len(self.rgb) == (self.num_sets * 3):
                 cr.set_source_rgb(self.rgb[(dataset * 3)],
                                         self.rgb[(dataset * 3) + 1],
                                         self.rgb[(dataset * 1) + 2])
             points = []
-            for index in range(0, points_per_set):
+            for index in range(points_per_set):
                 x = index * pixels_per_point
                 y = get_y(dataset, index)
 

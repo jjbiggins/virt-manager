@@ -61,9 +61,7 @@ DEFAULT_MEM = 1024
 #####################
 
 def _pretty_arch(_a):
-    if _a == "armv7l":
-        return "arm"
-    return _a
+    return "arm" if _a == "armv7l" else _a
 
 
 def _pretty_storage(size):
@@ -536,8 +534,7 @@ class vmmCreateVM(vmmGObjectUI):
             tree_tt = msg
             local_tt = msg
 
-        if not any([w.get_active() and w.get_sensitive()
-                    for w in virt_methods]):
+        if not any(w.get_active() and w.get_sensitive() for w in virt_methods):
             for w in virt_methods:
                 if w.get_sensitive():
                     w.set_active(True)
@@ -612,11 +609,11 @@ class vmmCreateVM(vmmGObjectUI):
             has_hvm_guests = False
             has_exe_guests = False
             for g in self.conn.caps.guests:
-                if g.os_type == "hvm":
-                    has_hvm_guests = True
                 if g.os_type == "exe":
                     has_exe_guests = True
 
+                elif g.os_type == "hvm":
+                    has_hvm_guests = True
             self.widget("vz-virt-type-hvm").set_sensitive(has_hvm_guests)
             self.widget("vz-virt-type-exe").set_sensitive(has_exe_guests)
             self.widget("vz-virt-type-hvm").set_active(has_hvm_guests)
@@ -654,10 +651,10 @@ class vmmCreateVM(vmmGObjectUI):
 
         # CPU
         phys_cpus = int(self.conn.host_active_processor_count())
-        cpu_label = (ngettext("Up to %(numcpus)d available",
-                              "Up to %(numcpus)d available",
-                              phys_cpus) %
-                     {'numcpus': int(phys_cpus)})
+        cpu_label = ngettext(
+            "Up to %(numcpus)d available", "Up to %(numcpus)d available", phys_cpus
+        ) % {'numcpus': phys_cpus}
+
         cpu_label = ("<span size='small'>%s</span>" % cpu_label)
         self.widget("cpus").set_range(1, max(phys_cpus, 1))
         self.widget("phys-cpu-label").set_markup(cpu_label)
@@ -719,10 +716,11 @@ class vmmCreateVM(vmmGObjectUI):
                                                arch=arch,
                                                typ=domtype)
 
-        if self._capsinfo:
-            if (self._capsinfo.guest == capsinfo.guest and
-                self._capsinfo.domain == capsinfo.domain):
-                return
+        if self._capsinfo and (
+            self._capsinfo.guest == capsinfo.guest
+            and self._capsinfo.domain == capsinfo.domain
+        ):
+            return
 
         self._capsinfo = capsinfo
         log.debug("Guest type set to os_type=%s, arch=%s, dom_type=%s",
@@ -780,10 +778,11 @@ class vmmCreateVM(vmmGObjectUI):
         model.clear()
 
         default = 0
-        archs = []
-        for guest in self.conn.caps.guests:
-            if guest.os_type == self._capsinfo.os_type:
-                archs.append(guest.arch)
+        archs = [
+            guest.arch
+            for guest in self.conn.caps.guests
+            if guest.os_type == self._capsinfo.os_type
+        ]
 
         # Combine x86/i686 to avoid confusion
         if (self.conn.caps.host.cpu.arch == "x86_64" and
@@ -812,7 +811,7 @@ class vmmCreateVM(vmmGObjectUI):
         for arch in archs:
             model.append([_pretty_arch(arch), arch])
 
-        show = not (len(archs) < 2)
+        show = len(archs) >= 2
         uiutil.set_grid_row_visible(self.widget("arch"), show)
         self.widget("arch").set_active(default)
 
@@ -844,7 +843,7 @@ class vmmCreateVM(vmmGObjectUI):
             label = self.conn.pretty_hv(self._capsinfo.os_type, domain)
             model.append([label, domain])
 
-        show = bool(len(model) > 1)
+        show = len(model) > 1
         uiutil.set_grid_row_visible(self.widget("virt-type"), show)
         self.widget("virt-type").set_active(default)
 
@@ -858,9 +857,9 @@ class vmmCreateVM(vmmGObjectUI):
 
         defmachine = None
         prios = []
-        recommended_machine = virtinst.Guest.get_recommended_machine(
-                self._capsinfo)
-        if recommended_machine:
+        if recommended_machine := virtinst.Guest.get_recommended_machine(
+            self._capsinfo
+        ):
             defmachine = recommended_machine
             prios = [defmachine]
 
@@ -941,11 +940,10 @@ class vmmCreateVM(vmmGObjectUI):
         storagesize = ""
         storagepath = ""
 
-        disk = self._gdata.disk
         fs = self._gdata.filesystem
-        if disk:
+        if disk := self._gdata.disk:
             if disk.wants_storage_creation():
-                storagesize = "%s" % _pretty_storage(disk.get_size())
+                storagesize = f"{_pretty_storage(disk.get_size())}"
             if not path:
                 path = disk.get_source_path()
             storagepath = (storagetmpl % path)
@@ -1003,9 +1001,11 @@ class vmmCreateVM(vmmGObjectUI):
             check_visible=True)
 
     def _get_config_install_page(self):
-        if self.widget("vz-install-box").get_visible():
-            if self.widget("vz-virt-type-exe").get_active():
-                return INSTALL_PAGE_VZ_TEMPLATE
+        if (
+            self.widget("vz-install-box").get_visible()
+            and self.widget("vz-virt-type-exe").get_active()
+        ):
+            return INSTALL_PAGE_VZ_TEMPLATE
         if self.widget("virt-install-box").get_visible():
             if self.widget("method-local").get_active():
                 return INSTALL_PAGE_ISO
@@ -1137,11 +1137,8 @@ class vmmCreateVM(vmmGObjectUI):
     # Intro page listeners
     def _conn_changed(self, src):
         uri = uiutil.get_list_selection(src)
-        newconn = None
         connmanager = vmmConnectionManager.get_instance()
-        if uri:
-            newconn = connmanager.conns[uri]
-
+        newconn = connmanager.conns[uri] if uri else None
         # If we aren't visible, let reset_state handle this for us, which
         # has a better chance of reporting error
         if not self.is_visible():
@@ -1176,15 +1173,15 @@ class vmmCreateVM(vmmGObjectUI):
         self._populate_virt_type()
 
     def _virt_type_changed(self, ignore):
-        domtype = uiutil.get_list_selection(self.widget("virt-type"), column=1)
-        if not domtype:
+        if domtype := uiutil.get_list_selection(
+            self.widget("virt-type"), column=1
+        ):
+            self._change_caps(self._capsinfo.os_type, self._capsinfo.arch, domtype)
+        else:
             return
 
-        self._change_caps(self._capsinfo.os_type, self._capsinfo.arch, domtype)
-
     def _vz_virt_type_changed(self, ignore):
-        is_hvm = self.widget("vz-virt-type-hvm").get_active()
-        if is_hvm:
+        if is_hvm := self.widget("vz-virt-type-hvm").get_active():
             self._change_caps("hvm")
         else:
             self._change_caps("exe")
@@ -1382,10 +1379,9 @@ class vmmCreateVM(vmmGObjectUI):
         curpage = notebook.get_current_page()
 
         if curpage == PAGE_INSTALL:
-            # Make sure we have detected the OS before validating the page
-            did_start = self._start_detect_os_if_needed(
-                forward_after_finish=True)
-            if did_start:
+            if did_start := self._start_detect_os_if_needed(
+                forward_after_finish=True
+            ):
                 return
 
         if self._validate(curpage) is not True:
@@ -1596,9 +1592,8 @@ class vmmCreateVM(vmmGObjectUI):
 
         # Kind of wonky, run storage validation now, which will assign
         # the import path. Import installer skips the storage page.
-        if is_import:
-            if not self._validate_storage_page():
-                return False
+        if is_import and not self._validate_storage_page():
+            return False
 
         for path in installer.get_search_paths(guest):
             self._addstorage.check_path_search(
@@ -1642,10 +1637,7 @@ class vmmCreateVM(vmmGObjectUI):
         return True
 
     def _get_storage_path(self, vmname, do_log):
-        failed_disk = None
-        if self._gdata.failed_guest:
-            failed_disk = self._gdata.disk
-
+        failed_disk = self._gdata.disk if self._gdata.failed_guest else None
         path = None
         path_already_created = False
 
@@ -1757,6 +1749,8 @@ class vmmCreateVM(vmmGObjectUI):
                 cdrom, location)
         self.widget("create-forward").set_sensitive(False)
 
+
+
         class ThreadResults(object):
             """
             Helper object to track results from the detection thread
@@ -1774,10 +1768,10 @@ class vmmCreateVM(vmmGObjectUI):
 
             def set_distro(self, distro):
                 self._results = distro
+
             def get_distro(self):
-                if self._results == self._DETECT_FAILED:
-                    return None
-                return self._results
+                return None if self._results == self._DETECT_FAILED else self._results
+
 
         thread_results = ThreadResults()
         detectThread = threading.Thread(target=self._detect_thread_cb,
@@ -1933,11 +1927,10 @@ class vmmCreateVM(vmmGObjectUI):
             self._gdata.failed_guest = guest
             return
 
-        foundvm = None
-        for vm in self.conn.list_vms():
-            if vm.get_uuid() == guest.uuid:
-                foundvm = vm
-                break
+        foundvm = next(
+            (vm for vm in self.conn.list_vms() if vm.get_uuid() == guest.uuid),
+            None,
+        )
 
         self._close()
 

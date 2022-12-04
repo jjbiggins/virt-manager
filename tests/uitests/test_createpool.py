@@ -141,7 +141,7 @@ def testCreatePoolXMLEditor(app):
     name.set_text(tmpname)
     win.find("XML", "page tab").click()
     xmleditor = win.find("XML editor")
-    newtext = xmleditor.text.replace(">%s<" % tmpname, ">%s<" % newname)
+    newtext = xmleditor.text.replace(f">{tmpname}<", f">{newname}<")
     xmleditor.set_text(newtext)
     finish.click()
     lib.utils.check(lambda: hostwin.active)
